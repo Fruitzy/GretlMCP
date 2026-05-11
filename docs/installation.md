@@ -24,6 +24,30 @@ Verify:
 & C:\Users\YOUR_USER\tools\gretl\gretlcli.exe --version
 ```
 
+## Install Gretl MCP from npm
+
+After npm publication, use the standard MCP config:
+
+```json
+{
+  "mcpServers": {
+    "gretl": {
+      "command": "npx",
+      "args": ["-y", "gretl-mcp@latest"],
+      "env": {
+        "GRETL_CLI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe"
+      }
+    }
+  }
+}
+```
+
+Or install globally:
+
+```powershell
+npm install -g gretl-mcp
+```
+
 ## Install Gretl MCP from GitHub
 
 ```powershell
@@ -47,20 +71,6 @@ Point your MCP client at the built server:
     }
   }
 }
-```
-
-## Install Gretl MCP from npm
-
-After the package is published:
-
-```powershell
-npm install -g gretl-mcp
-```
-
-Or run directly:
-
-```powershell
-npx gretl-mcp
 ```
 
 If Gretl is not on PATH, set:

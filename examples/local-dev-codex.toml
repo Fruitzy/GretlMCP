@@ -1,0 +1,6 @@
+[mcp_servers.gretl]
+command = "node"
+args = ["C:\\Users\\YOUR_USER\\GretlMCP\\dist\\index.js"]
+
+[mcp_servers.gretl.env]
+GRETL_CLI = "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe"

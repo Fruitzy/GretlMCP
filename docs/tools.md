@@ -18,6 +18,9 @@ Inputs:
 - `workspaceRoot`: Optional parent directory for run workspaces.
 - `gretlCliPath`: Optional path to `gretlcli`.
 
+Prefer the high-level dataset tools for untrusted prompts. Use
+`gretl_run_script` for trusted local scripts or advanced Gretl workflows.
+
 ## gretl_help
 
 Returns Gretl help for a command name.

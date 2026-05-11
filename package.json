@@ -1,12 +1,12 @@
 {
   "name": "gretl-mcp",
   "version": "0.1.0",
-  "description": "Model Context Protocol server for controlling Gretl through gretlcli.",
+  "description": "Model Context Protocol server for Gretl econometrics workflows via gretlcli.",
   "type": "module",
   "main": "./dist/index.js",
   "mcpName": "io.github.fruitzy/gretl-mcp",
   "license": "MIT",
-  "author": "",
+  "author": "Fruitzy",
   "homepage": "https://github.com/Fruitzy/GretlMCP#readme",
   "repository": {
     "type": "git",

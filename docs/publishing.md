@@ -38,7 +38,14 @@ npm login
 npm run build
 npm test
 npm run smoke
+npm pack --dry-run
 npm publish --access public
+```
+
+After publish, verify the install path:
+
+```powershell
+npx -y gretl-mcp@latest --version
 ```
 
 ## MCP Registry

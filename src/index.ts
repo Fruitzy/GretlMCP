@@ -4,6 +4,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import {
+  SERVER_NAME,
+  SERVER_VERSION,
+  applyCliOptions,
+  helpText,
+  parseCliArgs
+} from "./cli.js";
+import {
   GretlSafetyError,
   buildDatasetSummaryScript,
   buildHelpScript,
@@ -13,9 +20,28 @@ import {
   runGretlVersion
 } from "./gretlRunner.js";
 
+try {
+  const cliOptions = parseCliArgs(process.argv.slice(2));
+  if (cliOptions.action === "help") {
+    console.log(helpText());
+    process.exit(0);
+  }
+
+  if (cliOptions.action === "version") {
+    console.log(`${SERVER_NAME} ${SERVER_VERSION}`);
+    process.exit(0);
+  }
+
+  applyCliOptions(cliOptions);
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(message);
+  process.exit(1);
+}
+
 const server = new McpServer({
-  name: "gretl-mcp",
-  version: "0.1.0"
+  name: SERVER_NAME,
+  version: SERVER_VERSION
 });
 
 const safePathSchema = z
