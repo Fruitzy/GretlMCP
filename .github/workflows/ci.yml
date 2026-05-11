@@ -32,6 +32,8 @@ jobs:
       - run: npm test
         env:
           GRETL_CLI: ${{ github.workspace }}\tools\gretl\gretlcli.exe
+          GRETL_GUI: ${{ github.workspace }}\tools\gretl\gretl.exe
       - run: npm run smoke
         env:
           GRETL_CLI: ${{ github.workspace }}\tools\gretl\gretlcli.exe
+          GRETL_GUI: ${{ github.workspace }}\tools\gretl\gretl.exe
