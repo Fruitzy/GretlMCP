@@ -8,10 +8,16 @@ describe("CLI", () => {
 
   it("parses gretl CLI and workspace options", () => {
     expect(
-      parseCliArgs(["--gretl-cli", "C:\\tools\\gretl\\gretlcli.exe", "--workspace=tmp"])
+      parseCliArgs([
+        "--gretl-cli",
+        "C:\\tools\\gretl\\gretlcli.exe",
+        "--gretl-gui=C:\\tools\\gretl\\gretl.exe",
+        "--workspace=tmp"
+      ])
     ).toEqual({
       action: "run",
       gretlCliPath: "C:\\tools\\gretl\\gretlcli.exe",
+      gretlGuiPath: "C:\\tools\\gretl\\gretl.exe",
       workspaceRoot: "tmp"
     });
   });
@@ -27,6 +33,7 @@ describe("CLI", () => {
 
   it("prints useful help text", () => {
     expect(helpText()).toContain("--gretl-cli");
+    expect(helpText()).toContain("--gretl-gui");
     expect(helpText()).toContain("GRETL_CLI");
   });
 });

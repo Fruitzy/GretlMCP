@@ -11,6 +11,7 @@ advanced path for using Gretl's native scripting surface.
 ## Key Features
 
 - Scriptable Gretl control through `gretlcli`.
+- Optional visible Gretl GUI launch mode through `gretl.exe`.
 - High-level tools for version checks, command help, dataset summaries, and OLS.
 - Advanced `gretl_run_script` tool for trusted Hansl workflows.
 - Stdio transport, compatible with common MCP clients.
@@ -131,12 +132,14 @@ code --add-mcp "{\"name\":\"gretl\",\"command\":\"npx\",\"args\":[\"-y\",\"gretl
 Environment variables:
 
 - `GRETL_CLI`: optional path to `gretlcli` or `gretlcli.exe`.
+- `GRETL_GUI`: optional path to `gretl` or `gretl.exe`.
 - `GRETLMCP_WORKSPACE_DIR`: optional directory for Gretl run workspaces.
 
 CLI options:
 
 ```powershell
 gretl-mcp --gretl-cli C:\Users\YOUR_USER\tools\gretl\gretlcli.exe
+gretl-mcp --gretl-gui C:\Users\YOUR_USER\tools\gretl\gretl.exe
 gretl-mcp --workspace C:\Users\YOUR_USER\gretl-mcp-runs
 gretl-mcp --help
 gretl-mcp --version
@@ -145,6 +148,8 @@ gretl-mcp --version
 ## Tools
 
 - `gretl_version`: checks Gretl availability.
+- `gretl_gui_version`: checks Gretl GUI availability.
+- `gretl_gui_launch`: launches the visible Gretl desktop GUI.
 - `gretl_run_script`: runs a Gretl/Hansl script and returns output/artifacts.
 - `gretl_help`: returns Gretl help for a command.
 - `gretl_dataset_summary`: opens a local dataset and returns summary statistics.
@@ -157,6 +162,18 @@ commands and absolute file reads/writes. This is a guardrail, not a complete
 sandbox. Use `safeMode: false` only for trusted local work.
 
 Dataset helper tools reject URLs and require paths to existing local files.
+
+## GUI Mode
+
+`gretl_gui_launch` starts the real Gretl desktop application. It can open a local
+dataset/script file or write a prompted Hansl script and launch Gretl with
+`--run`. This gives the user the actual Gretl windows rather than only text
+output from `gretlcli`.
+
+This is not full click-by-click GUI control by itself. If you want the agent to
+observe screenshots, click menus, and make choices exactly like a human, the MCP
+client also needs desktop automation or computer-use capability. Gretl MCP now
+provides the Gretl-side launch surface for that workflow.
 
 ## Local Development
 

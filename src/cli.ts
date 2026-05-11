@@ -4,6 +4,7 @@ export const SERVER_VERSION = "0.1.0";
 export type CliOptions = {
   action: "run" | "help" | "version";
   gretlCliPath?: string;
+  gretlGuiPath?: string;
   workspaceRoot?: string;
 };
 
@@ -34,6 +35,17 @@ export function parseCliArgs(args: string[]): CliOptions {
       continue;
     }
 
+    if (arg === "--gretl-gui") {
+      options.gretlGuiPath = readOptionValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--gretl-gui=")) {
+      options.gretlGuiPath = readInlineValue(arg);
+      continue;
+    }
+
     if (arg === "--workspace") {
       options.workspaceRoot = readOptionValue(args, index, arg);
       index += 1;
@@ -56,6 +68,10 @@ export function applyCliOptions(options: CliOptions): void {
     process.env.GRETL_CLI = options.gretlCliPath;
   }
 
+  if (options.gretlGuiPath) {
+    process.env.GRETL_GUI = options.gretlGuiPath;
+  }
+
   if (options.workspaceRoot) {
     process.env.GRETLMCP_WORKSPACE_DIR = options.workspaceRoot;
   }
@@ -71,12 +87,14 @@ Usage:
 
 Options:
   --gretl-cli <path>  Path to gretlcli or gretlcli.exe.
+  --gretl-gui <path>  Path to gretl or gretl.exe.
   --workspace <dir>   Directory for Gretl run workspaces and artifacts.
   -h, --help          Show this help message.
   -V, --version       Print the server version.
 
 Environment:
   GRETL_CLI                Optional path to gretlcli.
+  GRETL_GUI                Optional path to gretl GUI.
   GRETLMCP_WORKSPACE_DIR   Optional workspace directory.
 `;
 }

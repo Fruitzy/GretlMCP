@@ -25,6 +25,13 @@
           "isSecret": false
         },
         {
+          "name": "GRETL_GUI",
+          "description": "Optional explicit path to the visible Gretl GUI executable.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
           "name": "GRETLMCP_WORKSPACE_DIR",
           "description": "Optional parent directory for Gretl run workspaces and generated artifacts.",
           "isRequired": false,

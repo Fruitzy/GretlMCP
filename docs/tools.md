@@ -25,6 +25,23 @@ Prefer the high-level dataset tools for untrusted prompts. Use
 
 Returns Gretl help for a command name.
 
+## gretl_gui_version
+
+Checks that the visible Gretl GUI executable is available.
+
+## gretl_gui_launch
+
+Launches the real Gretl desktop GUI. It can:
+
+- Open a local dataset or script file.
+- Run a provided Gretl/Hansl script on startup using `gretl.exe --run`.
+- Force English UI labels.
+- Start a new GUI instance or reuse an existing one.
+
+This opens Gretl visually for the user. It does not provide screenshot
+inspection or menu-click automation by itself; those require an MCP client or
+agent with desktop automation capability.
+
 ## gretl_dataset_summary
 
 Opens a Gretl-supported dataset and returns summary statistics plus correlations.

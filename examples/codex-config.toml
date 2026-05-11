@@ -4,3 +4,4 @@ args = ["-y", "gretl-mcp@latest"]
 
 [mcp_servers.gretl.env]
 GRETL_CLI = "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe"
+GRETL_GUI = "C:\\Users\\YOUR_USER\\tools\\gretl\\gretl.exe"

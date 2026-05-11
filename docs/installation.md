@@ -35,7 +35,8 @@ After npm publication, use the standard MCP config:
       "command": "npx",
       "args": ["-y", "gretl-mcp@latest"],
       "env": {
-        "GRETL_CLI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe"
+        "GRETL_CLI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe",
+        "GRETL_GUI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretl.exe"
       }
     }
   }
@@ -66,7 +67,8 @@ Point your MCP client at the built server:
       "command": "node",
       "args": ["C:\\Users\\YOUR_USER\\GretlMCP\\dist\\index.js"],
       "env": {
-        "GRETL_CLI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe"
+        "GRETL_CLI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe",
+        "GRETL_GUI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretl.exe"
       }
     }
   }
@@ -77,6 +79,7 @@ If Gretl is not on PATH, set:
 
 ```powershell
 $env:GRETL_CLI = "C:\Users\YOUR_USER\tools\gretl\gretlcli.exe"
+$env:GRETL_GUI = "C:\Users\YOUR_USER\tools\gretl\gretl.exe"
 ```
 
 ## Local Development

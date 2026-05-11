@@ -21,6 +21,8 @@ try {
   const toolNames = tools.tools.map((tool) => tool.name).sort();
   const requiredTools = [
     "gretl_dataset_summary",
+    "gretl_gui_launch",
+    "gretl_gui_version",
     "gretl_help",
     "gretl_ols",
     "gretl_run_script",
@@ -40,6 +42,15 @@ try {
   const versionText = readText(version);
   if (!versionText.includes("gretl version")) {
     throw new Error("gretl_version did not return Gretl version text.");
+  }
+
+  const guiVersion = await client.callTool({
+    name: "gretl_gui_version",
+    arguments: {}
+  });
+  const guiVersionText = readText(guiVersion);
+  if (!guiVersionText.includes("gretl version")) {
+    throw new Error("gretl_gui_version did not return Gretl version text.");
   }
 
   const scriptRun = await client.callTool({

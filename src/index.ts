@@ -19,6 +19,7 @@ import {
   runGretlScript,
   runGretlVersion
 } from "./gretlRunner.js";
+import { launchGretlGui, runGretlGuiVersion } from "./gretlGui.js";
 
 try {
   const cliOptions = parseCliArgs(process.argv.slice(2));
@@ -72,6 +73,79 @@ server.tool(
       stdout: result.stdout,
       stderr: result.stderr
     });
+  }
+);
+
+server.tool(
+  "gretl_gui_version",
+  "Return the installed Gretl GUI version by running gretl.exe --version.",
+  {
+    gretlGuiPath: z
+      .string()
+      .optional()
+      .describe("Optional explicit path to gretl or gretl.exe.")
+  },
+  async ({ gretlGuiPath }) => {
+    const result = await runGretlGuiVersion(gretlGuiPath);
+
+    return asMcpText({
+      ok: result.exitCode === 0,
+      gretlGuiPath: result.command,
+      args: result.args,
+      stdout: result.stdout,
+      stderr: result.stderr
+    });
+  }
+);
+
+server.tool(
+  "gretl_gui_launch",
+  "Launch the visible Gretl desktop GUI, optionally opening a local dataset/script or running a provided script on startup.",
+  {
+    filePath: z
+      .string()
+      .optional()
+      .describe("Optional local dataset or script file to open in the Gretl GUI."),
+    script: z
+      .string()
+      .optional()
+      .describe("Optional Gretl/Hansl script to write and open with --run in the GUI."),
+    runScript: z
+      .boolean()
+      .default(false)
+      .describe("When filePath points to a script, launch Gretl with --run filePath."),
+    safeMode: z
+      .boolean()
+      .default(true)
+      .describe("When script is provided, block shell-like commands and absolute file reads/writes."),
+    newInstance: z
+      .boolean()
+      .default(true)
+      .describe("Launch a new Gretl GUI instance instead of reusing an existing one."),
+    english: z.boolean().default(true).describe("Force Gretl GUI to use English."),
+    workspaceRoot: z
+      .string()
+      .optional()
+      .describe("Optional directory where GUI script workspaces are created."),
+    gretlGuiPath: z
+      .string()
+      .optional()
+      .describe("Optional explicit path to gretl or gretl.exe.")
+  },
+  async (input) => {
+    try {
+      const result = await launchGretlGui(input);
+      return asMcpText({
+        ok: true,
+        ...result
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return asMcpText({
+        ok: false,
+        error: message
+      });
+    }
   }
 );
 
