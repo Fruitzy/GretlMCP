@@ -17,6 +17,9 @@ Inputs:
 - `keepWorkspace`: Defaults to true. Keeps generated files available.
 - `workspaceRoot`: Optional parent directory for run workspaces.
 - `gretlCliPath`: Optional path to `gretlcli`.
+- `displayInGretl`: Defaults to true outside CI. Opens the script in Gretl GUI.
+- `gretlGuiPath`: Optional path to the visible Gretl GUI executable.
+- `guiNewInstance`: Defaults to true. Opens a new Gretl GUI instance.
 
 Prefer the high-level dataset tools for untrusted prompts. Use
 `gretl_run_script` for trusted local scripts or advanced Gretl workflows.
@@ -42,15 +45,29 @@ This opens Gretl visually for the user. It does not provide screenshot
 inspection or menu-click automation by itself; those require an MCP client or
 agent with desktop automation capability.
 
+## Default GUI Output
+
+Script-running tools open a visible Gretl GUI script window by default outside CI:
+
+- `gretl_run_script`
+- `gretl_help`
+- `gretl_dataset_summary`
+- `gretl_ols`
+
+To disable this default, pass `displayInGretl: false` or set
+`GRETLMCP_OPEN_GUI=false`.
+
 ## gretl_dataset_summary
 
 Opens a Gretl-supported dataset and returns summary statistics plus correlations.
-The path must point to an existing local file; URLs are rejected.
+The path must point to an existing local file; URLs are rejected. The same
+workflow opens in Gretl GUI by default.
 
 ## gretl_ols
 
 Opens a dataset and estimates an OLS model.
-The path must point to an existing local file; URLs are rejected.
+The path must point to an existing local file; URLs are rejected. The same
+workflow opens in Gretl GUI by default.
 
 ## Safety Model
 

@@ -151,7 +151,7 @@ server.tool(
 
 server.tool(
   "gretl_run_script",
-  "Run a Gretl/Hansl script through gretlcli and return output plus artifact paths.",
+  "Run a Gretl/Hansl script through gretlcli, and open the same script in the visible Gretl GUI by default.",
   {
     script: z.string().min(1).describe("Gretl/Hansl script to run."),
     timeoutSeconds: z
@@ -176,7 +176,19 @@ server.tool(
     gretlCliPath: z
       .string()
       .optional()
-      .describe("Optional explicit path to gretlcli or gretlcli.exe.")
+      .describe("Optional explicit path to gretlcli or gretlcli.exe."),
+    displayInGretl: z
+      .boolean()
+      .optional()
+      .describe("Open a visible Gretl GUI script window for this run. Defaults to true outside CI."),
+    gretlGuiPath: z
+      .string()
+      .optional()
+      .describe("Optional explicit path to gretl or gretl.exe."),
+    guiNewInstance: z
+      .boolean()
+      .default(true)
+      .describe("Open a new Gretl GUI instance for the visible script.")
   },
   async (input) => runScriptTool(input)
 );
@@ -189,42 +201,66 @@ server.tool(
       .string()
       .regex(/^[A-Za-z_][A-Za-z0-9_]*$/)
       .describe("Gretl command name."),
-    gretlCliPath: z.string().optional()
+    gretlCliPath: z.string().optional(),
+    displayInGretl: z
+      .boolean()
+      .optional()
+      .describe("Open a visible Gretl GUI script window for this help request. Defaults to true outside CI."),
+    gretlGuiPath: z.string().optional()
   },
-  async ({ commandName, gretlCliPath }) =>
+  async ({ commandName, gretlCliPath, displayInGretl, gretlGuiPath }) =>
     runScriptTool({
       script: buildHelpScript(commandName),
       timeoutSeconds: 15,
       safeMode: true,
       keepWorkspace: false,
-      gretlCliPath
+      gretlCliPath,
+      displayInGretl,
+      gretlGuiPath
     })
 );
 
 server.tool(
   "gretl_dataset_summary",
-  "Open a Gretl-supported dataset file and return summary statistics and correlations.",
+  "Open a Gretl-supported dataset file, return summary statistics, and open the same workflow in Gretl GUI by default.",
   {
     datasetPath: safePathSchema.describe(
       "Path to a CSV, gdt, Excel, Stata, SPSS, or other Gretl-supported dataset."
     ),
     timeoutSeconds: z.number().int().positive().max(300).optional(),
     safeMode: z.boolean().default(false),
-    gretlCliPath: z.string().optional()
+    gretlCliPath: z.string().optional(),
+    displayInGretl: z
+      .boolean()
+      .optional()
+      .describe("Open a visible Gretl GUI script window for this workflow. Defaults to true outside CI."),
+    gretlGuiPath: z.string().optional(),
+    guiNewInstance: z.boolean().default(true)
   },
-  async ({ datasetPath, timeoutSeconds, safeMode, gretlCliPath }) =>
+  async ({
+    datasetPath,
+    timeoutSeconds,
+    safeMode,
+    gretlCliPath,
+    displayInGretl,
+    gretlGuiPath,
+    guiNewInstance
+  }) =>
     runScriptTool({
       script: buildDatasetSummaryScript(resolveExistingDatasetPath(datasetPath)),
       timeoutSeconds,
       safeMode,
       keepWorkspace: true,
-      gretlCliPath
+      gretlCliPath,
+      displayInGretl,
+      gretlGuiPath,
+      guiNewInstance
     })
 );
 
 server.tool(
   "gretl_ols",
-  "Open a dataset and estimate an OLS model.",
+  "Open a dataset, estimate an OLS model, and open the same workflow in Gretl GUI by default.",
   {
     datasetPath: safePathSchema.describe("Path to a Gretl-supported dataset."),
     dependentVariable: gretlIdentifierSchema.describe("Dependent variable name."),
@@ -235,7 +271,13 @@ server.tool(
     includeConstant: z.boolean().default(true),
     timeoutSeconds: z.number().int().positive().max(300).optional(),
     safeMode: z.boolean().default(false),
-    gretlCliPath: z.string().optional()
+    gretlCliPath: z.string().optional(),
+    displayInGretl: z
+      .boolean()
+      .optional()
+      .describe("Open a visible Gretl GUI script window for this workflow. Defaults to true outside CI."),
+    gretlGuiPath: z.string().optional(),
+    guiNewInstance: z.boolean().default(true)
   },
   async ({
     datasetPath,
@@ -244,7 +286,10 @@ server.tool(
     includeConstant,
     timeoutSeconds,
     safeMode,
-    gretlCliPath
+    gretlCliPath,
+    displayInGretl,
+    gretlGuiPath,
+    guiNewInstance
   }) =>
     runScriptTool({
       script: buildOlsScript(
@@ -256,7 +301,10 @@ server.tool(
       timeoutSeconds,
       safeMode,
       keepWorkspace: true,
-      gretlCliPath
+      gretlCliPath,
+      displayInGretl,
+      gretlGuiPath,
+      guiNewInstance
     })
 );
 
@@ -267,9 +315,14 @@ async function runScriptTool(input: {
   keepWorkspace?: boolean;
   workspaceRoot?: string;
   gretlCliPath?: string;
+  displayInGretl?: boolean;
+  gretlGuiPath?: string;
+  guiNewInstance?: boolean;
 }) {
   try {
     const result = await runGretlScript(input);
+    const gretlGui = await maybeOpenInGretl(input);
+
     return asMcpText({
       ok: result.exitCode === 0 && !result.timedOut,
       exitCode: result.exitCode,
@@ -279,6 +332,7 @@ async function runScriptTool(input: {
       workspace: result.workspace,
       scriptPath: result.scriptPath,
       artifacts: result.artifacts,
+      gretlGui,
       stdout: result.stdout,
       stderr: result.stderr
     });
@@ -297,6 +351,78 @@ async function runScriptTool(input: {
       error: message
     });
   }
+}
+
+async function maybeOpenInGretl(input: {
+  script: string;
+  safeMode?: boolean;
+  workspaceRoot?: string;
+  displayInGretl?: boolean;
+  gretlGuiPath?: string;
+  guiNewInstance?: boolean;
+}) {
+  const decision = shouldDisplayInGretl(input.displayInGretl);
+  if (!decision.enabled) {
+    return {
+      opened: false,
+      reason: decision.reason
+    };
+  }
+
+  try {
+    const result = await launchGretlGui({
+      script: input.script,
+      safeMode: input.safeMode,
+      workspaceRoot: input.workspaceRoot,
+      gretlGuiPath: input.gretlGuiPath,
+      newInstance: input.guiNewInstance ?? true
+    });
+
+    return {
+      opened: true,
+      ...result
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      opened: false,
+      error: message
+    };
+  }
+}
+
+function shouldDisplayInGretl(requested?: boolean): {
+  enabled: boolean;
+  reason?: string;
+} {
+  if (requested !== undefined) {
+    return requested
+      ? { enabled: true }
+      : { enabled: false, reason: "disabled by tool argument displayInGretl=false" };
+  }
+
+  const envValue = process.env.GRETLMCP_OPEN_GUI;
+  if (envValue !== undefined) {
+    if (/^(0|false|no|off)$/i.test(envValue)) {
+      return {
+        enabled: false,
+        reason: "disabled by GRETLMCP_OPEN_GUI"
+      };
+    }
+
+    if (/^(1|true|yes|on)$/i.test(envValue)) {
+      return { enabled: true };
+    }
+  }
+
+  if (process.env.CI) {
+    return {
+      enabled: false,
+      reason: "disabled automatically in CI"
+    };
+  }
+
+  return { enabled: true };
 }
 
 function asMcpText(value: unknown) {

@@ -5,7 +5,8 @@ const transport = new StdioClientTransport({
   command: process.execPath,
   args: ["dist/index.js"],
   env: {
-    ...process.env
+    ...process.env,
+    GRETLMCP_OPEN_GUI: "false"
   }
 });
 
@@ -57,12 +58,17 @@ try {
     name: "gretl_run_script",
     arguments: {
       script: "nulldata 8\nseries x = normal()\nsummary x",
-      keepWorkspace: false
+      keepWorkspace: false,
+      displayInGretl: false
     }
   });
   const scriptText = readText(scriptRun);
   if (!scriptText.match(/Summary statistics/i)) {
     throw new Error("gretl_run_script did not execute the sample Gretl script.");
+  }
+  const scriptPayload = JSON.parse(scriptText);
+  if (scriptPayload.gretlGui?.opened !== false) {
+    throw new Error("smoke test expected Gretl GUI display to be disabled.");
   }
 
   console.log(

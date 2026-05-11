@@ -81,6 +81,11 @@ export async function launchGretlGui(
     shell: false
   });
 
+  const spawnError = await waitForSpawn(child);
+  if (spawnError) {
+    throw spawnError;
+  }
+
   child.unref();
 
   return {
@@ -93,6 +98,34 @@ export async function launchGretlGui(
     note: DEFAULT_NOTE,
     artifacts: []
   };
+}
+
+function waitForSpawn(child: ReturnType<typeof spawn>): Promise<Error | undefined> {
+  return new Promise((resolvePromise) => {
+    const timeout = setTimeout(() => {
+      cleanup();
+      resolvePromise(undefined);
+    }, 250);
+
+    const onError = (error: Error) => {
+      cleanup();
+      resolvePromise(error);
+    };
+
+    const onSpawn = () => {
+      cleanup();
+      resolvePromise(undefined);
+    };
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      child.off("error", onError);
+      child.off("spawn", onSpawn);
+    };
+
+    child.once("error", onError);
+    child.once("spawn", onSpawn);
+  });
 }
 
 export async function runGretlGuiVersion(

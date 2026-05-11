@@ -82,6 +82,12 @@ $env:GRETL_CLI = "C:\Users\YOUR_USER\tools\gretl\gretlcli.exe"
 $env:GRETL_GUI = "C:\Users\YOUR_USER\tools\gretl\gretl.exe"
 ```
 
+By default, script-running tools open a visible Gretl GUI window. To disable that:
+
+```powershell
+$env:GRETLMCP_OPEN_GUI = "false"
+```
+
 ## Local Development
 
 ```powershell

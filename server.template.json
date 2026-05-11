@@ -37,6 +37,13 @@
           "isRequired": false,
           "format": "string",
           "isSecret": false
+        },
+        {
+          "name": "GRETLMCP_OPEN_GUI",
+          "description": "Set to false to prevent script-running tools from opening visible Gretl GUI windows by default.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
         }
       ]
     }

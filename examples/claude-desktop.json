@@ -5,7 +5,8 @@
       "args": ["-y", "gretl-mcp@latest"],
       "env": {
         "GRETL_CLI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe",
-        "GRETL_GUI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretl.exe"
+        "GRETL_GUI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretl.exe",
+        "GRETLMCP_OPEN_GUI": "true"
       }
     }
   }
