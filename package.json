@@ -1,0 +1,62 @@
+{
+  "name": "gretl-mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server for controlling Gretl through gretlcli.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "mcpName": "io.github.fruitzy/gretl-mcp",
+  "license": "MIT",
+  "author": "",
+  "homepage": "https://github.com/Fruitzy/GretlMCP#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Fruitzy/GretlMCP.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Fruitzy/GretlMCP/issues"
+  },
+  "keywords": [
+    "gretl",
+    "econometrics",
+    "mcp",
+    "model-context-protocol",
+    "hansl",
+    "statistics"
+  ],
+  "bin": {
+    "gretl-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "docs",
+    "examples",
+    "server.template.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run src",
+    "smoke": "node scripts/smoke.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepack": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.5",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.14"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

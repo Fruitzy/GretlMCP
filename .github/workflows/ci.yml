@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Install Gretl
+        run: |
+          New-Item -ItemType Directory -Force -Path tools | Out-Null
+          curl.exe -L -o tools\gretl-2026b-win64.zip https://prdownloads.sourceforge.net/gretl/gretl-2026b-win64.zip
+          $expectedHash = "D8FCCFFE18C733153CB33C3689209D07860BA7C756B9569A0F9EC6A045B573C0"
+          $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath tools\gretl-2026b-win64.zip).Hash
+          if ($actualHash -ne $expectedHash) {
+            throw "Unexpected Gretl zip SHA256: $actualHash"
+          }
+          Expand-Archive -LiteralPath tools\gretl-2026b-win64.zip -DestinationPath tools -Force
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+        env:
+          GRETL_CLI: ${{ github.workspace }}\tools\gretl\gretlcli.exe
+      - run: npm run smoke
+        env:
+          GRETL_CLI: ${{ github.workspace }}\tools\gretl\gretlcli.exe

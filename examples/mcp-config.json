@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "gretl": {
+      "command": "npx",
+      "args": ["gretl-mcp"],
+      "env": {
+        "GRETL_CLI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe"
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+# Tools
+
+## gretl_version
+
+Checks that `gretlcli` is available and returns Gretl output.
+
+## gretl_run_script
+
+Runs a Gretl/Hansl script. This is the advanced tool that lets an MCP client control
+most Gretl functionality exposed through scripting.
+
+Inputs:
+
+- `script`: Gretl/Hansl script.
+- `timeoutSeconds`: Optional timeout, maximum 300 seconds.
+- `safeMode`: Defaults to true. Blocks shell-like commands and absolute file writes.
+- `keepWorkspace`: Defaults to true. Keeps generated files available.
+- `workspaceRoot`: Optional parent directory for run workspaces.
+- `gretlCliPath`: Optional path to `gretlcli`.
+
+## gretl_help
+
+Returns Gretl help for a command name.
+
+## gretl_dataset_summary
+
+Opens a Gretl-supported dataset and returns summary statistics plus correlations.
+The path must point to an existing local file; URLs are rejected.
+
+## gretl_ols
+
+Opens a dataset and estimates an OLS model.
+The path must point to an existing local file; URLs are rejected.
+
+## Safety Model
+
+This server starts in a conservative mode for arbitrary scripts. Safe mode blocks
+common shell escape patterns and absolute input/output paths. It is not a full
+security sandbox. Run with `safeMode: false` only for trusted local files and scripts.

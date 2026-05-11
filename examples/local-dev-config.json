@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "gretl": {
+      "command": "node",
+      "args": ["C:\\Users\\lapes\\gretl-mcp\\dist\\index.js"],
+      "env": {
+        "GRETL_CLI": "C:\\Users\\lapes\\tools\\gretl\\gretlcli.exe"
+      }
+    }
+  }
+}
