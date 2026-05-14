@@ -24,32 +24,9 @@ Verify:
 & C:\Users\YOUR_USER\tools\gretl\gretlcli.exe --version
 ```
 
-## Install Gretl MCP from npm
-
-After npm publication, use the standard MCP config:
-
-```json
-{
-  "mcpServers": {
-    "gretl": {
-      "command": "npx",
-      "args": ["-y", "gretl-mcp@latest"],
-      "env": {
-        "GRETL_CLI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe",
-        "GRETL_GUI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretl.exe"
-      }
-    }
-  }
-}
-```
-
-Or install globally:
-
-```powershell
-npm install -g gretl-mcp
-```
-
 ## Install Gretl MCP from GitHub
+
+Use this path right now. The npm package name `gretl-mcp` is not published yet.
 
 ```powershell
 git clone https://github.com/Fruitzy/GretlMCP.git
@@ -87,6 +64,31 @@ By default, script-running tools open a visible Gretl GUI window. To disable tha
 ```powershell
 $env:GRETLMCP_OPEN_GUI = "false"
 $env:GRETLMCP_REQUIRE_GUI = "false"
+```
+
+## Install Gretl MCP from npm
+
+After npm publication, use the standard MCP config:
+
+```json
+{
+  "mcpServers": {
+    "gretl": {
+      "command": "npx",
+      "args": ["-y", "gretl-mcp@latest"],
+      "env": {
+        "GRETL_CLI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe",
+        "GRETL_GUI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretl.exe"
+      }
+    }
+  }
+}
+```
+
+Or install globally:
+
+```powershell
+npm install -g gretl-mcp
 ```
 
 ## Local Development

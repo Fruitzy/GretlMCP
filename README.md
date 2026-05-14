@@ -11,10 +11,14 @@ for prompt-generated Gretl workflows: the client writes Hansl from the user's
 request, runs it through Gretl, and returns Gretl's output plus generated
 artifacts.
 
+Right now the supported user install path is the GitHub checkout in this repo.
+The npm package name `gretl-mcp` is not published yet, so `npx gretl-mcp@latest`
+will not work until publication is completed.
+
 ## Key Features
 
 - Scriptable Gretl control through `gretlcli`.
-- Optional visible Gretl GUI launch mode through `gretl.exe`.
+- GUI-first workflow tools that launch `gretl.exe` and fail if the GUI did not open.
 - Capability discovery for Gretl commands, functions, and package commands.
 - Generic execution tools for full Hansl scripts, command lists, and local
   `.inp` script files.
@@ -50,23 +54,7 @@ Verify Gretl:
 
 ## Getting Started
 
-After the npm package is published, the standard MCP config is:
-
-```json
-{
-  "mcpServers": {
-    "gretl": {
-      "command": "npx",
-      "args": ["-y", "gretl-mcp@latest"],
-      "env": {
-        "GRETL_CLI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe"
-      }
-    }
-  }
-}
-```
-
-Until npm publishing is complete, use the GitHub install path:
+Use the GitHub install path:
 
 ```powershell
 git clone https://github.com/Fruitzy/GretlMCP.git
@@ -84,7 +72,25 @@ Then point your MCP client at the built server:
       "command": "node",
       "args": ["C:\\Users\\YOUR_USER\\GretlMCP\\dist\\index.js"],
       "env": {
-        "GRETL_CLI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe"
+        "GRETL_CLI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe",
+        "GRETL_GUI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretl.exe"
+      }
+    }
+  }
+}
+```
+
+After npm publication, the standard MCP config will be:
+
+```json
+{
+  "mcpServers": {
+    "gretl": {
+      "command": "npx",
+      "args": ["-y", "gretl-mcp@latest"],
+      "env": {
+        "GRETL_CLI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe",
+        "GRETL_GUI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretl.exe"
       }
     }
   }
@@ -95,17 +101,33 @@ Then point your MCP client at the built server:
 
 ### Claude Code
 
-```powershell
-claude mcp add gretl npx -y gretl-mcp@latest
-```
-
-For local development:
+Use the local GitHub build now:
 
 ```powershell
 claude mcp add gretl node C:\Users\YOUR_USER\GretlMCP\dist\index.js
 ```
 
+After npm publication:
+
+```powershell
+claude mcp add gretl npx -y gretl-mcp@latest
+```
+
 ### Codex
+
+Use the local GitHub build now:
+
+```toml
+[mcp_servers.gretl]
+command = "node"
+args = ["C:\\Users\\YOUR_USER\\GretlMCP\\dist\\index.js"]
+
+[mcp_servers.gretl.env]
+GRETL_CLI = "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe"
+GRETL_GUI = "C:\\Users\\YOUR_USER\\tools\\gretl\\gretl.exe"
+```
+
+After npm publication:
 
 ```toml
 [mcp_servers.gretl]
@@ -114,22 +136,23 @@ args = ["-y", "gretl-mcp@latest"]
 
 [mcp_servers.gretl.env]
 GRETL_CLI = "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe"
+GRETL_GUI = "C:\\Users\\YOUR_USER\\tools\\gretl\\gretl.exe"
 ```
 
 ### Cursor, Windsurf, Cline, and similar clients
 
-Use the standard JSON config above. If the client asks for a command and args
+Use the local JSON config above. If the client asks for a command and args
 separately, use:
 
 ```text
-command: npx
-args: -y gretl-mcp@latest
+command: node
+args: C:\Users\YOUR_USER\GretlMCP\dist\index.js
 ```
 
 ### VS Code
 
 ```powershell
-code --add-mcp "{\"name\":\"gretl\",\"command\":\"npx\",\"args\":[\"-y\",\"gretl-mcp@latest\"],\"env\":{\"GRETL_CLI\":\"C:\\\\Users\\\\YOUR_USER\\\\tools\\\\gretl\\\\gretlcli.exe\"}}"
+code --add-mcp "{\"name\":\"gretl\",\"command\":\"node\",\"args\":[\"C:\\\\Users\\\\YOUR_USER\\\\GretlMCP\\\\dist\\\\index.js\"],\"env\":{\"GRETL_CLI\":\"C:\\\\Users\\\\YOUR_USER\\\\tools\\\\gretl\\\\gretlcli.exe\",\"GRETL_GUI\":\"C:\\\\Users\\\\YOUR_USER\\\\tools\\\\gretl\\\\gretl.exe\"}}"
 ```
 
 ## Configuration
@@ -160,14 +183,14 @@ gretl-mcp --version
 - `gretl_gui_version`: checks Gretl GUI availability.
 - `gretl_gui_launch`: launches the visible Gretl desktop GUI.
 - `gretl_capabilities`: lists installed Gretl commands, functions, and package help.
-- `gretl_run_script`: runs a Gretl/Hansl script and returns output/artifacts.
-- `gretl_run_commands`: runs raw Gretl command lines in order.
-- `gretl_run_script_file`: runs an existing local `.inp` file.
+- `gretl_run_script`: runs a Gretl/Hansl script and requires GUI opening by default.
+- `gretl_run_commands`: runs raw Gretl command lines and requires GUI opening by default.
+- `gretl_run_script_file`: runs an existing local `.inp` file and requires GUI opening by default.
 - `gretl_package`: runs native `pkg` actions such as install, query, run-sample, unload, remove, and index.
 - `gretl_make_package`: builds `.gfn` or `.zip` function packages with `makepkg`.
 - `gretl_help`: returns Gretl help for a command.
-- `gretl_dataset_summary`: opens a local dataset and returns summary statistics.
-- `gretl_ols`: opens a local dataset and estimates an OLS model.
+- `gretl_dataset_summary`: opens a local dataset, returns summary statistics, and requires GUI opening by default.
+- `gretl_ols`: opens a local dataset, estimates an OLS model, and requires GUI opening by default.
 
 ## Safety
 
@@ -232,7 +255,7 @@ node dist/index.js
 This project is structured for GitHub, npm, and MCP Registry metadata:
 
 - GitHub hosts source code, issues, docs, releases, and CI.
-- npm provides the easiest user install path with `npx gretl-mcp@latest`.
+- npm will provide the easiest user install path after publication.
 - `server.template.json` is ready to become `server.json` for registry publish.
 
 Before publishing to npm or the MCP Registry, review `docs/publishing.md`.
