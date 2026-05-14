@@ -103,7 +103,9 @@ Returns Gretl help for a command name.
 
 ## gretl_gui_version
 
-Checks that the visible Gretl GUI executable is available.
+Checks that the visible Gretl GUI executable is available and asks it for its
+version. The optional `timeoutSeconds` argument prevents headless CI runs from
+hanging on `gretl.exe --version`.
 
 ## gretl_gui_launch
 

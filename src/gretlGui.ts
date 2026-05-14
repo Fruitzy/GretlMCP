@@ -129,16 +129,19 @@ function waitForSpawn(child: ReturnType<typeof spawn>): Promise<Error | undefine
 }
 
 export async function runGretlGuiVersion(
-  gretlGuiPath?: string
+  gretlGuiPath?: string,
+  options: { timeoutMs?: number } = {}
 ): Promise<{
   command: string;
   args: string[];
   exitCode: number | null;
+  timedOut: boolean;
   stdout: string;
   stderr: string;
 }> {
   const command = await assertGretlGuiAvailable(gretlGuiPath);
   const args = ["--version"];
+  const timeoutMs = options.timeoutMs ?? 10_000;
 
   return new Promise((resolvePromise, reject) => {
     const child = spawn(command, args, {
@@ -148,6 +151,15 @@ export async function runGretlGuiVersion(
 
     let stdout = "";
     let stderr = "";
+    let timedOut = false;
+    let settled = false;
+
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      stderr += `${stderr ? "\n" : ""}gretl GUI version command timed out after ${timeoutMs}ms.`;
+      child.kill();
+      setTimeout(() => finish(null), 1_000).unref();
+    }, timeoutMs);
 
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
@@ -157,10 +169,23 @@ export async function runGretlGuiVersion(
     child.stderr.on("data", (chunk) => {
       stderr += chunk;
     });
-    child.on("error", reject);
-    child.on("close", (exitCode) => {
-      resolvePromise({ command, args, exitCode, stdout, stderr });
+    child.on("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
     });
+    child.on("close", (exitCode) => {
+      finish(exitCode);
+    });
+
+    function finish(exitCode: number | null) {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearTimeout(timeout);
+      resolvePromise({ command, args, exitCode, timedOut, stdout, stderr });
+    }
   });
 }
 

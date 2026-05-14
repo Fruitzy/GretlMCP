@@ -8,7 +8,16 @@ describe("Gretl GUI helpers", () => {
   });
 
   it("reads the Gretl GUI version without launching an interactive session", async () => {
-    const result = await runGretlGuiVersion();
+    const result = await runGretlGuiVersion(undefined, {
+      timeoutMs: process.env.CI ? 1_500 : 10_000
+    });
+
+    if (result.timedOut) {
+      expect(process.env.CI).toBeTruthy();
+      expect(result.stderr).toContain("timed out");
+      return;
+    }
+
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("gretl version");
   });

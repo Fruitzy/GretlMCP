@@ -88,15 +88,25 @@ server.tool(
     gretlGuiPath: z
       .string()
       .optional()
-      .describe("Optional explicit path to gretl or gretl.exe.")
+      .describe("Optional explicit path to gretl or gretl.exe."),
+    timeoutSeconds: z
+      .number()
+      .int()
+      .positive()
+      .max(60)
+      .optional()
+      .describe("Maximum time to wait for gretl.exe --version. Defaults to 10 seconds.")
   },
-  async ({ gretlGuiPath }) => {
-    const result = await runGretlGuiVersion(gretlGuiPath);
+  async ({ gretlGuiPath, timeoutSeconds }) => {
+    const result = await runGretlGuiVersion(gretlGuiPath, {
+      timeoutMs: timeoutSeconds ? timeoutSeconds * 1000 : undefined
+    });
 
     return asMcpText({
-      ok: result.exitCode === 0,
+      ok: result.exitCode === 0 && !result.timedOut,
       gretlGuiPath: result.command,
       args: result.args,
+      timedOut: result.timedOut,
       stdout: result.stdout,
       stderr: result.stderr
     });

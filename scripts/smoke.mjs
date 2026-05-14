@@ -55,11 +55,17 @@ try {
 
   const guiVersion = await client.callTool({
     name: "gretl_gui_version",
-    arguments: {}
+    arguments: {
+      timeoutSeconds: process.env.CI ? 2 : 10
+    }
   });
   const guiVersionText = readText(guiVersion);
-  if (!guiVersionText.includes("gretl version")) {
+  const guiVersionPayload = JSON.parse(guiVersionText);
+  if (guiVersionPayload.ok && !guiVersionPayload.stdout.includes("gretl version")) {
     throw new Error("gretl_gui_version did not return Gretl version text.");
+  }
+  if (!guiVersionPayload.ok && !(process.env.CI && guiVersionPayload.timedOut)) {
+    throw new Error(`gretl_gui_version failed: ${guiVersionPayload.stderr}`);
   }
 
   const scriptRun = await client.callTool({
