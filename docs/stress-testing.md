@@ -10,6 +10,17 @@ npm run stress
 The suite starts the built stdio MCP server and calls real MCP tools. It covers:
 
 - Gretl capability discovery.
+- A macro forecasting pipeline with St. Louis Fed data, transformations,
+  stationarity tests, ARIMA, VAR, expanding-window forecasts, RMSE, MAE, and
+  directional accuracy.
+- Structural-break and instability diagnostics with CUSUM, CUSUMSQ, Chow-style
+  tests, rolling coefficients, and an endogenous break search.
+- A Monte Carlo study of OLS failures under homoskedasticity, heteroskedasticity,
+  autocorrelation, endogeneity, measurement error, and heavy tails.
+- Textbook-result replication using a Greene dataset, followed by robustness
+  changes and a specification-curve graph.
+- An automated diagnostic engine function that runs OLS diagnostics and prints a
+  model risk score.
 - Nonlinear least squares with bad starts, OLS-derived starts, analytical
   derivatives, and numerical derivatives.
 - Mixed-frequency imports from the bundled `fedstl.bin` database using average,

@@ -13,6 +13,7 @@ const distIndex = resolve(repoRoot, "dist/index.js");
 const gretlRoot = await resolveGretlRoot();
 const fedstlPath = join(gretlRoot, "db", "fedstl.bin");
 const abdataPath = join(gretlRoot, "data", "misc", "abdata.gdt");
+const greeneConsumptionPath = join(gretlRoot, "data", "greene", "greene11_3.gdt");
 
 await access(distIndex, constants.R_OK).catch(() => {
   throw new Error("dist/index.js not found. Run npm run build before npm run stress.");
@@ -43,6 +44,37 @@ try {
     includePackageHelp: true,
     displayInGretl: false
   }, ["Valid gretl commands", "makepkg"]);
+
+  await runScriptCase("01-macro-forecasting-pipeline", macroForecastingScript(), [
+    "Macro forecasting pipeline",
+    "Expanding-window RMSE",
+    "ARIMA model estimated",
+    "VAR model estimated"
+  ], { safeMode: false });
+
+  await runScriptCase("02-structural-break-detection", structuralBreakScript(), [
+    "Structural break detection",
+    "Endogenous break search",
+    "Baseline CUSUM"
+  ], { safeMode: false, expectArtifacts: ["cusum.png", "cusumsq.png", "rolling_coeff.png"] });
+
+  await runScriptCase("03-monte-carlo-ols-failure", monteCarloScript(), [
+    "Monte Carlo OLS failure table",
+    "homoskedastic",
+    "measurement_error",
+    "heavy_tail"
+  ]);
+
+  await runScriptCase("04-textbook-result-spec-curve", textbookSpecCurveScript(), [
+    "Textbook replication and stress test",
+    "Specification curve"
+  ], { safeMode: false, expectArtifacts: ["spec_curve.png"] });
+
+  await runScriptCase("05-diagnostic-engine", diagnosticEngineScript(), [
+    "Automated diagnostic engine",
+    "Model risk score",
+    "Model probably invalid because"
+  ]);
 
   await runScriptCase("06-nls-logistic", nlsLogisticScript(), [
     "Bad-start numerical NLS",
@@ -257,6 +289,7 @@ async function resolveGretlRoot() {
     try {
       await access(join(candidate, "db", "fedstl.bin"), constants.R_OK);
       await access(join(candidate, "data", "misc", "abdata.gdt"), constants.R_OK);
+      await access(join(candidate, "data", "greene", "greene11_3.gdt"), constants.R_OK);
       return candidate;
     } catch {
       // Try the next Gretl installation candidate.
@@ -274,6 +307,232 @@ function errorMessage(error) {
 
 function q(path) {
   return `"${path.replace(/\\/g, "/")}"`;
+}
+
+function macroForecastingScript() {
+  return [
+    `open ${q(fedstlPath)}`,
+    "setobs 12 2010:01",
+    "smpl ; 2024:12",
+    "data unrate cpiaucsl fedfunds indpro",
+    "series infl = 1200 * (log(cpiaucsl) - log(cpiaucsl(-1)))",
+    "series ip_growth = 1200 * (log(indpro) - log(indpro(-1)))",
+    "series dunrate = unrate - unrate(-1)",
+    "series drate = fedfunds - fedfunds(-1)",
+    "adf 12 infl --c --quiet",
+    "adf 12 ip_growth --c --quiet",
+    "smpl 2011:02 2020:12",
+    "ols infl const infl(-1) dunrate(-1) drate(-1) ip_growth(-1) --quiet",
+    "fcast 2021:01 2024:12 1 fc_expanding --recursive --quiet",
+    "arima 1 0 1 ; infl --quiet",
+    "printf \"ARIMA model estimated: AIC=%.4f\\n\", $aic",
+    "var 2 infl dunrate drate ip_growth --quiet",
+    "printf \"VAR model estimated for transformed macro system\\n\"",
+    "smpl 2021:01 2024:12",
+    "series fc_naive = infl(-1)",
+    "series err_expanding = infl - fc_expanding",
+    "series err_naive = infl - fc_naive",
+    "series hit_expanding = (infl * fc_expanding) > 0",
+    "scalar rmse_expanding = sqrt(mean(err_expanding^2))",
+    "scalar mae_expanding = mean(abs(err_expanding))",
+    "scalar dir_expanding = mean(hit_expanding)",
+    "scalar rmse_naive = sqrt(mean(err_naive^2))",
+    "printf \"Macro forecasting pipeline\\n\"",
+    "printf \"Expanding-window RMSE=%.4f MAE=%.4f directional accuracy=%.4f naive RMSE=%.4f\\n\", rmse_expanding, mae_expanding, dir_expanding, rmse_naive",
+    "printf \"Model-selection conclusion: compare expanding OLS against naive, ARIMA, and VAR diagnostics before choosing production model.\\n\""
+  ].join("\n");
+}
+
+function structuralBreakScript() {
+  return [
+    `open ${q(fedstlPath)}`,
+    "setobs 12 2000:01",
+    "smpl ; 2024:12",
+    "data unrate cpiaucsl fedfunds",
+    "genr time",
+    "series infl = 1200 * (log(cpiaucsl) - log(cpiaucsl(-1)))",
+    "ols infl const unrate fedfunds --quiet",
+    "cusum --plot=cusum.png",
+    "printf \"Baseline CUSUM completed\\n\"",
+    "cusum --squares --plot=cusumsq.png",
+    "chow 2020:03 --quiet",
+    "scalar best_ssr = 1.0e100",
+    "scalar best_break = 0",
+    "series roll_b = NA",
+    "loop i=80..250 --quiet",
+    "  smpl 1 i",
+    "  ols infl const unrate fedfunds --quiet",
+    "  scalar bi = $coeff(unrate)",
+    "  smpl full",
+    "  roll_b[i] = bi",
+    "  series split = time >= i",
+    "  series split_unrate = split * unrate",
+    "  series split_rate = split * fedfunds",
+    "  ols infl const unrate fedfunds split split_unrate split_rate --quiet",
+    "  if $ess < best_ssr",
+    "    scalar best_ssr = $ess",
+    "    scalar best_break = i",
+    "  endif",
+    "endloop",
+    "gnuplot roll_b --time-series --with-lines --output=rolling_coeff.png { set title 'Rolling unemployment coefficient'; set key off; }",
+    "printf \"Structural break detection\\n\"",
+    "printf \"Endogenous break search: best observation index=%g SSR=%.4f\\n\", best_break, best_ssr"
+  ].join("\n");
+}
+
+function monteCarloScript() {
+  return [
+    "set seed 4242",
+    "nulldata 120",
+    "scalar reps = 1000",
+    "matrix out = zeros(6, 5)",
+    "strings names = defarray(\"homoskedastic\", \"heteroskedastic\", \"autocorrelated\", \"endogeneity\", \"measurement_error\", \"heavy_tail\")",
+    "loop c=1..6 --quiet",
+    "  scalar sum_b = 0",
+    "  scalar sum_b2 = 0",
+    "  scalar sum_sqerr = 0",
+    "  scalar reject = 0",
+    "  scalar cover = 0",
+    "  loop r=1..1000 --quiet",
+    "    series xtrue = normal()",
+    "    series x = xtrue",
+    "    series e = normal()",
+    "    if c == 2",
+    "      series e = normal() * (0.5 + abs(xtrue))",
+    "    elif c == 3",
+    "      series e = normal()",
+    "      series e = 0.65*e(-1) + normal()",
+    "    elif c == 4",
+    "      series v = normal()",
+    "      series x = xtrue + v",
+    "      series e = 0.8*v + normal()",
+    "    elif c == 5",
+    "      series x = xtrue + normal()*0.8",
+    "    elif c == 6",
+    "      series e = normal() * (1 + 5*(uniform() < 0.05))",
+    "    endif",
+    "    series y = 1 + xtrue + e",
+    "    ols y const x --quiet",
+    "    scalar b = $coeff(x)",
+    "    scalar se = $stderr(x)",
+    "    scalar t = (b - 1) / se",
+    "    scalar sum_b += b",
+    "    scalar sum_b2 += b^2",
+    "    scalar sum_sqerr += (b - 1)^2",
+    "    scalar reject += abs(t) > 1.96",
+    "    scalar cover += (b - 1.96*se <= 1) && (b + 1.96*se >= 1)",
+    "  endloop",
+    "  scalar mean_b = sum_b / reps",
+    "  out[c,1] = mean_b - 1",
+    "  out[c,2] = sum_b2/reps - mean_b^2",
+    "  out[c,3] = sqrt(sum_sqerr / reps)",
+    "  out[c,4] = reject / reps",
+    "  out[c,5] = cover / reps",
+    "endloop",
+    "printf \"Monte Carlo OLS failure table\\n\"",
+    "printf \"case bias variance rmse rejection coverage\\n\"",
+    "loop c=1..6 --quiet",
+    "  printf \"%s %.4f %.4f %.4f %.4f %.4f\\n\", names[c], out[c,1], out[c,2], out[c,3], out[c,4], out[c,5]",
+    "endloop"
+  ].join("\n");
+}
+
+function textbookSpecCurveScript() {
+  return [
+    `open ${q(greeneConsumptionPath)}`,
+    "ols C const Y --quiet",
+    "scalar base_b = $coeff(Y)",
+    "scalar base_se = $stderr(Y)",
+    "series lC = log(C)",
+    "series lY = log(Y)",
+    "matrix specs = zeros(6, 2)",
+    "specs[1,1] = 1",
+    "specs[1,2] = base_b",
+    "ols C const Y --robust --quiet",
+    "specs[2,1] = 2",
+    "specs[2,2] = $coeff(Y)",
+    "ols lC const lY --quiet",
+    "specs[3,1] = 3",
+    "specs[3,2] = $coeff(lY)",
+    "smpl 1 20",
+    "ols C const Y --quiet",
+    "specs[4,1] = 4",
+    "specs[4,2] = $coeff(Y)",
+    "smpl 21 36",
+    "ols C const Y --quiet",
+    "specs[5,1] = 5",
+    "specs[5,2] = $coeff(Y)",
+    "smpl full",
+    "series outlier = C > quantile(C, 0.95)",
+    "smpl outlier == 0 --restrict",
+    "ols C const Y --quiet",
+    "specs[6,1] = 6",
+    "specs[6,2] = $coeff(Y)",
+    "smpl full",
+    "gnuplot 2 1 --matrix=specs --with-lines --output=spec_curve.png { set title 'Specification curve: income coefficient'; set xlabel 'specification'; set ylabel 'coefficient'; set key off; }",
+    "printf \"Textbook replication and stress test\\n\"",
+    "printf \"Base Greene consumption coefficient on Y=%.6f SE=%.6f\\n\", base_b, base_se",
+    "printf \"Specification curve created with 6 plausible variants\\n\""
+  ].join("\n");
+}
+
+function diagnosticEngineScript() {
+  return [
+    "set seed 5252",
+    "nulldata 180",
+    "setobs 12 2010:01",
+    "genr time",
+    "series x1 = normal()",
+    "series x2 = 0.95*x1 + normal()*0.15",
+    "series e = normal() * (0.4 + abs(x1))",
+    "series y = 1 + 0.5*x1 + 0.3*x2 + 0.02*time + e",
+    "function scalar diagnostic_engine(series yvar, list X)",
+    "  ols yvar const X --quiet",
+    "  scalar risk = 0",
+    "  string reasons = \"\"",
+    "  modtest --normality --silent",
+    "  if $pvalue < 0.05",
+    "    scalar risk += 15",
+    "    string reasons += \" nonnormal_residuals\"",
+    "  endif",
+    "  modtest --white --silent",
+    "  if $pvalue < 0.05",
+    "    scalar risk += 20",
+    "    string reasons += \" heteroskedasticity\"",
+    "  endif",
+    "  modtest 4 --autocorr --silent",
+    "  if $pvalue < 0.05",
+    "    scalar risk += 20",
+    "    string reasons += \" autocorrelation\"",
+    "  endif",
+    "  reset --silent",
+    "  if $pvalue < 0.05",
+    "    scalar risk += 20",
+    "    string reasons += \" RESET_rejected\"",
+    "  endif",
+    "  vif --quiet",
+    "  matrix v = $result",
+    "  if max(v) > 10",
+    "    scalar risk += 15",
+    "    string reasons += \" multicollinearity\"",
+    "  endif",
+    "  leverage --save --overwrite --quiet",
+    "  if max(abs(influ)) > 1",
+    "    scalar risk += 10",
+    "    string reasons += \" influential_observations\"",
+    "  endif",
+    "  if strlen(reasons) == 0",
+    "    string reasons = \" none\"",
+    "  endif",
+    "  ols yvar const X --robust --quiet",
+    "  printf \"Automated diagnostic engine\\n\"",
+    "  printf \"Model probably invalid because:%s\\n\", reasons",
+    "  printf \"Model risk score = %.1f\\n\", risk",
+    "  return risk",
+    "end function",
+    "list X = x1 x2 time",
+    "scalar risk_score = diagnostic_engine(y, X)"
+  ].join("\n");
 }
 
 function nlsLogisticScript() {

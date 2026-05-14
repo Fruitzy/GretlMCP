@@ -218,10 +218,11 @@ npm run stress
 ```
 
 `npm run stress` drives the built MCP server through broader prompt-style
-workflows: NLS, mixed-frequency compaction, panel models, GARCH graphs, IV
-simulation, and a reproducible project. The foreign-language stress case is
-dependency-gated and requires a real Python, Rscript, or Octave executable on
-`PATH`.
+workflows: macro forecasting, structural breaks, Monte Carlo simulation,
+textbook replication, diagnostic automation, NLS, mixed-frequency compaction,
+panel models, GARCH graphs, IV simulation, and a reproducible project. The
+foreign-language stress case is dependency-gated and requires a real Python,
+Rscript, or Octave executable on `PATH`.
 
 Run the built server:
 
