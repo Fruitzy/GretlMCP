@@ -166,6 +166,7 @@ Environment variables:
 - `GRETLMCP_WORKSPACE_DIR`: optional directory for Gretl run workspaces.
 - `GRETLMCP_OPEN_GUI`: set to `false` to stop tools from opening Gretl windows by default.
 - `GRETLMCP_REQUIRE_GUI`: set to `false` to allow CLI-only success when GUI opening is disabled or unavailable.
+- `GRETLMCP_ENFORCE_GUI_ONLY`: set to `true` to reject any headless workflow request.
 
 CLI options:
 
@@ -173,6 +174,8 @@ CLI options:
 gretl-mcp --gretl-cli C:\Users\YOUR_USER\tools\gretl\gretlcli.exe
 gretl-mcp --gretl-gui C:\Users\YOUR_USER\tools\gretl\gretl.exe
 gretl-mcp --workspace C:\Users\YOUR_USER\gretl-mcp-runs
+gretl-mcp --enforce-gui-only
+gretl-mcp --allow-headless
 gretl-mcp --help
 gretl-mcp --version
 ```
@@ -216,6 +219,11 @@ open, the tool returns `ok: false` even when the CLI script itself succeeded.
 Set `displayInGretl: false` and `requireGui: false` on a tool call, or set
 `GRETLMCP_OPEN_GUI=false` together with `GRETLMCP_REQUIRE_GUI=false`, to allow
 CLI-only automation.
+
+For clients that should never bypass the desktop app, set
+`GRETLMCP_ENFORCE_GUI_ONLY=true` or launch the server with `--enforce-gui-only`.
+In that mode, the workflow tools reject `displayInGretl: false` and
+`requireGui: false` instead of honoring them.
 
 `gretl_gui_launch` can also be called directly. It starts the real Gretl desktop
 application, opens a local dataset/script file, or writes a prompted Hansl script

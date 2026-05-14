@@ -10,7 +10,8 @@ const transport = new StdioClientTransport({
   env: {
     ...process.env,
     GRETLMCP_OPEN_GUI: "false",
-    GRETLMCP_REQUIRE_GUI: "false"
+    GRETLMCP_REQUIRE_GUI: "false",
+    GRETLMCP_ENFORCE_GUI_ONLY: "false"
   }
 });
 
@@ -78,11 +79,17 @@ try {
       requireGui: false
     }
   });
-  const scriptText = readText(scriptRun);
-  if (!scriptText.match(/Summary statistics/i)) {
-    throw new Error("gretl_run_script did not execute the sample Gretl script.");
+  const scriptPayload = JSON.parse(readText(scriptRun));
+  if (scriptPayload.ok !== true || scriptPayload.exitCode !== 0) {
+    throw new Error(
+      `gretl_run_script did not execute the sample Gretl script: ${JSON.stringify({
+        ok: scriptPayload.ok,
+        exitCode: scriptPayload.exitCode,
+        gretlGui: scriptPayload.gretlGui,
+        error: scriptPayload.error
+      })}`
+    );
   }
-  const scriptPayload = JSON.parse(scriptText);
   if (scriptPayload.gretlGui?.opened !== false) {
     throw new Error("smoke test expected Gretl GUI display to be disabled.");
   }
@@ -96,7 +103,8 @@ try {
       requireGui: false
     }
   });
-  if (!readText(commandsRun).match(/Summary statistics/i)) {
+  const commandsPayload = JSON.parse(readText(commandsRun));
+  if (commandsPayload.ok !== true || commandsPayload.exitCode !== 0) {
     throw new Error("gretl_run_commands did not execute the sample commands.");
   }
 
@@ -109,7 +117,8 @@ try {
       requireGui: false
     }
   });
-  if (!readText(capabilities).includes("Valid gretl commands")) {
+  const capabilitiesPayload = JSON.parse(readText(capabilities));
+  if (!String(capabilitiesPayload.stdout ?? "").includes("Valid gretl commands")) {
     throw new Error("gretl_capabilities did not return Gretl command help.");
   }
 
@@ -130,7 +139,8 @@ try {
         requireGui: false
       }
     });
-    if (!readText(scriptFileRun).match(/Summary statistics/i)) {
+    const scriptFilePayload = JSON.parse(readText(scriptFileRun));
+    if (scriptFilePayload.ok !== true || scriptFilePayload.exitCode !== 0) {
       throw new Error("gretl_run_script_file did not execute the sample script.");
     }
   } finally {
@@ -152,6 +162,41 @@ try {
   }
   if (!String(guiRequiredPayload.error ?? "").includes("Gretl GUI was required")) {
     throw new Error("gretl_run_script did not explain the required GUI failure.");
+  }
+
+  const enforcedTransport = new StdioClientTransport({
+    command: process.execPath,
+    args: ["dist/index.js"],
+    env: {
+      ...process.env,
+      GRETLMCP_OPEN_GUI: "true",
+      GRETLMCP_ENFORCE_GUI_ONLY: "true"
+    }
+  });
+  const enforcedClient = new Client({
+    name: "gretl-mcp-smoke-enforced",
+    version: "0.2.0"
+  });
+  await enforcedClient.connect(enforcedTransport);
+  try {
+    const enforcedRun = await enforcedClient.callTool({
+      name: "gretl_run_script",
+      arguments: {
+        script: "nulldata 4\nseries x = normal()\nsummary x",
+        keepWorkspace: false,
+        displayInGretl: false,
+        requireGui: false
+      }
+    });
+    const enforcedPayload = JSON.parse(readText(enforcedRun));
+    if (enforcedPayload.ok !== false) {
+      throw new Error("enforced GUI-only mode should reject headless workflow requests.");
+    }
+    if (!String(enforcedPayload.error ?? "").includes("enforced GUI-only mode")) {
+      throw new Error("enforced GUI-only mode did not explain the policy rejection.");
+    }
+  } finally {
+    await enforcedClient.close();
   }
 
   console.log(

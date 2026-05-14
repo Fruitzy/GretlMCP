@@ -66,6 +66,12 @@ $env:GRETLMCP_OPEN_GUI = "false"
 $env:GRETLMCP_REQUIRE_GUI = "false"
 ```
 
+For clients that must never fall back to headless execution, set:
+
+```powershell
+$env:GRETLMCP_ENFORCE_GUI_ONLY = "true"
+```
+
 ## Install Gretl MCP from npm
 
 After npm publication, use the standard MCP config:

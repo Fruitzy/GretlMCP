@@ -1,12 +1,13 @@
 {
   "mcpServers": {
     "gretl": {
-      "command": "npx",
-      "args": ["-y", "gretl-mcp@latest"],
+      "command": "node",
+      "args": ["C:\\Users\\YOUR_USER\\GretlMCP\\dist\\index.js"],
       "env": {
         "GRETL_CLI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe",
         "GRETL_GUI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretl.exe",
-        "GRETLMCP_OPEN_GUI": "true"
+        "GRETLMCP_OPEN_GUI": "true",
+        "GRETLMCP_ENFORCE_GUI_ONLY": "true"
       }
     }
   }

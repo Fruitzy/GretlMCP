@@ -533,6 +533,7 @@ async function runScriptTool(input: {
   guiNewInstance?: boolean;
 }) {
   try {
+    validateGuiPolicy(input.displayInGretl, input.requireGui);
     const result = await runGretlScript(retainWorkspaceForGui(input));
     return formatGretlRunResult(result, input);
   } catch (error) {
@@ -553,6 +554,7 @@ async function runCommandsTool(input: {
   guiNewInstance?: boolean;
 }) {
   try {
+    validateGuiPolicy(input.displayInGretl, input.requireGui);
     const result = await runGretlCommands(retainWorkspaceForGui(input));
     return formatGretlRunResult(result, input);
   } catch (error) {
@@ -573,6 +575,7 @@ async function runScriptFileTool(input: {
   guiNewInstance?: boolean;
 }) {
   try {
+    validateGuiPolicy(input.displayInGretl, input.requireGui);
     const result = await runGretlScriptFile(input);
     const gretlGui = await maybeOpenInGretl({
       scriptPath: result.scriptPath,
@@ -619,6 +622,7 @@ async function runPackageTool(input: {
   guiNewInstance?: boolean;
 }) {
   try {
+    validateGuiPolicy(input.displayInGretl, input.requireGui);
     const result = await runGretlPackage(retainWorkspaceForGui(input));
     return formatGretlRunResult(result, input);
   } catch (error) {
@@ -641,6 +645,7 @@ async function runMakePackageTool(input: {
   guiNewInstance?: boolean;
 }) {
   try {
+    validateGuiPolicy(input.displayInGretl, input.requireGui);
     const result = await runGretlMakePackage(retainWorkspaceForGui(input));
     return formatGretlRunResult(result, input);
   } catch (error) {
@@ -816,12 +821,52 @@ function resolveGuiBehavior(displayRequested?: boolean, requireRequested?: boole
   return { enabled: true, required };
 }
 
+function validateGuiPolicy(displayRequested?: boolean, requireRequested?: boolean): void {
+  if (!isGuiOnlyEnforced()) {
+    return;
+  }
+
+  if (displayRequested === false) {
+    throw new Error(
+      "This Gretl MCP server is running in enforced GUI-only mode, so displayInGretl=false is not allowed."
+    );
+  }
+
+  if (requireRequested === false) {
+    throw new Error(
+      "This Gretl MCP server is running in enforced GUI-only mode, so requireGui=false is not allowed."
+    );
+  }
+
+  const openGuiEnv = process.env.GRETLMCP_OPEN_GUI;
+  if (openGuiEnv !== undefined && /^(0|false|no|off)$/i.test(openGuiEnv)) {
+    throw new Error(
+      "This Gretl MCP server is running in enforced GUI-only mode, but GRETLMCP_OPEN_GUI disables GUI launch."
+    );
+  }
+}
+
 function shouldRequireGretlGui(requested?: boolean): boolean {
   if (requested !== undefined) {
     return requested;
   }
 
   const envValue = process.env.GRETLMCP_REQUIRE_GUI;
+  if (envValue !== undefined) {
+    if (/^(0|false|no|off)$/i.test(envValue)) {
+      return false;
+    }
+
+    if (/^(1|true|yes|on)$/i.test(envValue)) {
+      return true;
+    }
+  }
+
+  return !process.env.CI;
+}
+
+function isGuiOnlyEnforced(): boolean {
+  const envValue = process.env.GRETLMCP_ENFORCE_GUI_ONLY;
   if (envValue !== undefined) {
     if (/^(0|false|no|off)$/i.test(envValue)) {
       return false;

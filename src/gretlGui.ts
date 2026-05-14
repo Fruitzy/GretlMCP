@@ -86,6 +86,8 @@ export async function launchGretlGui(
     throw spawnError;
   }
 
+  await verifyGuiProcessStarted(child);
+
   child.unref();
 
   return {
@@ -125,6 +127,40 @@ function waitForSpawn(child: ReturnType<typeof spawn>): Promise<Error | undefine
 
     child.once("error", onError);
     child.once("spawn", onSpawn);
+  });
+}
+
+function verifyGuiProcessStarted(child: ReturnType<typeof spawn>): Promise<void> {
+  return new Promise((resolvePromise, reject) => {
+    const timeout = setTimeout(() => {
+      cleanup();
+      resolvePromise();
+    }, 1_200);
+
+    const onError = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+
+    const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
+      cleanup();
+      reject(
+        new Error(
+          `Gretl GUI exited too quickly after launch (code=${code ?? "null"}, signal=${signal ?? "null"}).`
+        )
+      );
+    };
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      child.off("error", onError);
+      child.off("exit", onExit);
+      child.off("close", onExit);
+    };
+
+    child.once("error", onError);
+    child.once("exit", onExit);
+    child.once("close", onExit);
   });
 }
 

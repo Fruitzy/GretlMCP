@@ -31,6 +31,7 @@ Inputs:
 - `gretlCliPath`: Optional path to `gretlcli`.
 - `displayInGretl`: Defaults to true outside CI. Opens the script in Gretl GUI.
 - `requireGui`: Defaults to true outside CI. Fails the tool if Gretl GUI did not open.
+- `GRETLMCP_ENFORCE_GUI_ONLY=true`: Rejects headless overrides instead of honoring them.
 - `gretlGuiPath`: Optional path to the visible Gretl GUI executable.
 - `guiNewInstance`: Defaults to true. Opens a new Gretl GUI instance.
 
@@ -139,6 +140,10 @@ and return `ok: false` if that window did not open:
 To disable this default for automation, pass `displayInGretl: false` and
 `requireGui: false`, or set `GRETLMCP_OPEN_GUI=false` together with
 `GRETLMCP_REQUIRE_GUI=false`.
+
+To make GUI usage non-optional for weaker agents or shared MCP clients, set
+`GRETLMCP_ENFORCE_GUI_ONLY=true`. In that mode, the workflow tools reject
+headless overrides before running Gretl.
 
 ## gretl_dataset_summary
 

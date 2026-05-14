@@ -31,6 +31,7 @@ const transport = new StdioClientTransport({
     ...process.env,
     GRETLMCP_OPEN_GUI: "false",
     GRETLMCP_REQUIRE_GUI: "false",
+    GRETLMCP_ENFORCE_GUI_ONLY: "false",
     GRETLMCP_WORKSPACE_DIR: runRoot
   }
 });
