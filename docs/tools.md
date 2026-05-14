@@ -30,6 +30,7 @@ Inputs:
 - `workspaceRoot`: Optional parent directory for run workspaces.
 - `gretlCliPath`: Optional path to `gretlcli`.
 - `displayInGretl`: Defaults to true outside CI. Opens the script in Gretl GUI.
+- `requireGui`: Defaults to true outside CI. Fails the tool if Gretl GUI did not open.
 - `gretlGuiPath`: Optional path to the visible Gretl GUI executable.
 - `guiNewInstance`: Defaults to true. Opens a new Gretl GUI instance.
 
@@ -58,6 +59,7 @@ Inputs:
 - `scriptOpt`: Optional numeric value passed as Gretl `--scriptopt`.
 - `safeMode`: Defaults to true. Validates the file before running it.
 - `displayInGretl`: Defaults to true outside CI. Opens the script in Gretl GUI.
+- `requireGui`: Defaults to true outside CI. Fails the tool if Gretl GUI did not open.
 
 ## gretl_capabilities
 
@@ -82,9 +84,9 @@ Inputs:
 - `local`: Adds `--local` for a local `.gfn` or `.zip` package file.
 - `quiet`, `verbose`, `staging`: Native `pkg` flags.
 
-Package tools default to `displayInGretl: false`, because install/remove/build
-actions have side effects. Pass `displayInGretl: true` to also open the generated
-script in the GUI.
+Package tools now follow the same GUI-first behavior as the other workflow
+tools: outside CI they open the generated script in Gretl GUI and treat that
+window launch as required unless `requireGui: false` is set.
 
 ## gretl_make_package
 
@@ -122,7 +124,8 @@ agent with desktop automation capability.
 
 ## Default GUI Output
 
-Script-running tools open a visible Gretl GUI script window by default outside CI:
+Script-running tools open a visible Gretl GUI script window by default outside CI
+and return `ok: false` if that window did not open:
 
 - `gretl_run_script`
 - `gretl_run_commands`
@@ -130,9 +133,12 @@ Script-running tools open a visible Gretl GUI script window by default outside C
 - `gretl_help`
 - `gretl_dataset_summary`
 - `gretl_ols`
+- `gretl_package`
+- `gretl_make_package`
 
-To disable this default, pass `displayInGretl: false` or set
-`GRETLMCP_OPEN_GUI=false`.
+To disable this default for automation, pass `displayInGretl: false` and
+`requireGui: false`, or set `GRETLMCP_OPEN_GUI=false` together with
+`GRETLMCP_REQUIRE_GUI=false`.
 
 ## gretl_dataset_summary
 

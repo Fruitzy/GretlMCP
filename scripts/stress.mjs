@@ -30,6 +30,7 @@ const transport = new StdioClientTransport({
   env: {
     ...process.env,
     GRETLMCP_OPEN_GUI: "false",
+    GRETLMCP_REQUIRE_GUI: "false",
     GRETLMCP_WORKSPACE_DIR: runRoot
   }
 });
@@ -47,7 +48,8 @@ try {
   await runToolCase("capabilities", "gretl_capabilities", {
     includeFunctions: false,
     includePackageHelp: true,
-    displayInGretl: false
+    displayInGretl: false,
+    requireGui: false
   }, ["Valid gretl commands", "makepkg"]);
 
   await runScriptCase("01-macro-forecasting-pipeline", macroForecastingScript(), [
@@ -143,7 +145,8 @@ async function runScriptCase(name, script, requiredText, options = {}) {
         timeoutSeconds: 120,
         safeMode: options.safeMode ?? true,
         keepWorkspace: true,
-        displayInGretl: false
+        displayInGretl: false,
+        requireGui: false
       }
     });
     const payload = parsePayload(response);
@@ -225,7 +228,8 @@ async function runReproducibleProjectCase() {
         scriptPath: mainPath,
         timeoutSeconds: 120,
         safeMode: false,
-        displayInGretl: false
+        displayInGretl: false,
+        requireGui: false
       }
     });
     const payload = parsePayload(response);

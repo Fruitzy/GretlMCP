@@ -9,7 +9,8 @@ const transport = new StdioClientTransport({
   args: ["dist/index.js"],
   env: {
     ...process.env,
-    GRETLMCP_OPEN_GUI: "false"
+    GRETLMCP_OPEN_GUI: "false",
+    GRETLMCP_REQUIRE_GUI: "false"
   }
 });
 
@@ -73,7 +74,8 @@ try {
     arguments: {
       script: "nulldata 8\nseries x = normal()\nsummary x",
       keepWorkspace: false,
-      displayInGretl: false
+      displayInGretl: false,
+      requireGui: false
     }
   });
   const scriptText = readText(scriptRun);
@@ -90,7 +92,8 @@ try {
     arguments: {
       commands: ["nulldata 8", "series x = normal()", "summary x"],
       keepWorkspace: false,
-      displayInGretl: false
+      displayInGretl: false,
+      requireGui: false
     }
   });
   if (!readText(commandsRun).match(/Summary statistics/i)) {
@@ -102,7 +105,8 @@ try {
     arguments: {
       includeFunctions: false,
       includePackageHelp: false,
-      displayInGretl: false
+      displayInGretl: false,
+      requireGui: false
     }
   });
   if (!readText(capabilities).includes("Valid gretl commands")) {
@@ -122,7 +126,8 @@ try {
       name: "gretl_run_script_file",
       arguments: {
         scriptPath,
-        displayInGretl: false
+        displayInGretl: false,
+        requireGui: false
       }
     });
     if (!readText(scriptFileRun).match(/Summary statistics/i)) {
@@ -130,6 +135,23 @@ try {
     }
   } finally {
     await rm(tempDir, { recursive: true, force: true });
+  }
+
+  const guiRequiredRun = await client.callTool({
+    name: "gretl_run_script",
+    arguments: {
+      script: "nulldata 4\nseries x = normal()\nsummary x",
+      keepWorkspace: false,
+      displayInGretl: false,
+      requireGui: true
+    }
+  });
+  const guiRequiredPayload = JSON.parse(readText(guiRequiredRun));
+  if (guiRequiredPayload.ok !== false) {
+    throw new Error("gretl_run_script should fail when GUI is required but disabled.");
+  }
+  if (!String(guiRequiredPayload.error ?? "").includes("Gretl GUI was required")) {
+    throw new Error("gretl_run_script did not explain the required GUI failure.");
   }
 
   console.log(

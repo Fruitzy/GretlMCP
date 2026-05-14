@@ -86,6 +86,7 @@ By default, script-running tools open a visible Gretl GUI window. To disable tha
 
 ```powershell
 $env:GRETLMCP_OPEN_GUI = "false"
+$env:GRETLMCP_REQUIRE_GUI = "false"
 ```
 
 ## Local Development
