@@ -1,6 +1,6 @@
 {
   "name": "gretl-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Model Context Protocol server for Gretl econometrics workflows via gretlcli.",
   "type": "module",
   "main": "./dist/index.js",
@@ -40,6 +40,7 @@
     "start": "node dist/index.js",
     "test": "vitest run src",
     "smoke": "node scripts/smoke.mjs",
+    "stress": "node scripts/stress.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepack": "npm run build"
   },

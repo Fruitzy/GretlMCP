@@ -12,11 +12,16 @@ import {
 } from "./cli.js";
 import {
   GretlSafetyError,
+  buildCapabilitiesScript,
   buildDatasetSummaryScript,
   buildHelpScript,
   buildOlsScript,
   resolveExistingDatasetPath,
+  runGretlCommands,
+  runGretlMakePackage,
+  runGretlPackage,
   runGretlScript,
+  runGretlScriptFile,
   runGretlVersion
 } from "./gretlRunner.js";
 import { launchGretlGui, runGretlGuiVersion } from "./gretlGui.js";
@@ -151,7 +156,7 @@ server.tool(
 
 server.tool(
   "gretl_run_script",
-  "Run a Gretl/Hansl script through gretlcli, and open the same script in the visible Gretl GUI by default.",
+  "Run any Gretl/Hansl script through gretlcli. Use this as the main tool for prompt-generated Gretl workflows.",
   {
     script: z.string().min(1).describe("Gretl/Hansl script to run."),
     timeoutSeconds: z
@@ -191,6 +196,165 @@ server.tool(
       .describe("Open a new Gretl GUI instance for the visible script.")
   },
   async (input) => runScriptTool(input)
+);
+
+server.tool(
+  "gretl_run_commands",
+  "Run one or more raw Gretl command lines. This is a compact alternative to gretl_run_script for prompt-generated calculations.",
+  {
+    commands: z
+      .array(z.string().min(1))
+      .min(1)
+      .describe("Gretl command lines to run in order."),
+    timeoutSeconds: z
+      .number()
+      .int()
+      .positive()
+      .max(300)
+      .optional()
+      .describe("Maximum runtime in seconds. Defaults to 30, max 300."),
+    safeMode: z
+      .boolean()
+      .default(true)
+      .describe("When true, blocks shell-like commands and absolute file writes."),
+    keepWorkspace: z
+      .boolean()
+      .default(true)
+      .describe("Keep the run workspace so generated artifacts remain available."),
+    workspaceRoot: z
+      .string()
+      .optional()
+      .describe("Optional directory where run workspaces are created."),
+    gretlCliPath: z
+      .string()
+      .optional()
+      .describe("Optional explicit path to gretlcli or gretlcli.exe."),
+    displayInGretl: z
+      .boolean()
+      .optional()
+      .describe("Open the generated command script in the visible Gretl GUI. Defaults to true outside CI."),
+    gretlGuiPath: z
+      .string()
+      .optional()
+      .describe("Optional explicit path to gretl or gretl.exe."),
+    guiNewInstance: z
+      .boolean()
+      .default(true)
+      .describe("Open a new Gretl GUI instance for the visible script.")
+  },
+  async (input) => runCommandsTool(input)
+);
+
+server.tool(
+  "gretl_run_script_file",
+  "Run an existing local Gretl .inp script file with gretlcli, preserving its own working directory by default.",
+  {
+    scriptPath: safePathSchema.describe("Path to an existing local Gretl .inp script."),
+    timeoutSeconds: z.number().int().positive().max(300).optional(),
+    safeMode: z
+      .boolean()
+      .default(true)
+      .describe("When true, validates the script before running it."),
+    workingDirectory: z
+      .string()
+      .optional()
+      .describe("Working directory for the script. Defaults to the script file directory."),
+    scriptOpt: z
+      .number()
+      .optional()
+      .describe("Optional numeric value passed to Gretl as --scriptopt."),
+    gretlCliPath: z.string().optional(),
+    displayInGretl: z
+      .boolean()
+      .optional()
+      .describe("Open the script file in the visible Gretl GUI after running. Defaults to true outside CI."),
+    gretlGuiPath: z.string().optional(),
+    guiNewInstance: z.boolean().default(true)
+  },
+  async (input) => runScriptFileTool(input)
+);
+
+server.tool(
+  "gretl_capabilities",
+  "List Gretl commands, built-in functions, and package-management help from the installed Gretl version.",
+  {
+    includeFunctions: z
+      .boolean()
+      .default(true)
+      .describe("Include Gretl's built-in accessors and functions from help functions."),
+    includePackageHelp: z
+      .boolean()
+      .default(true)
+      .describe("Include help for pkg and makepkg."),
+    timeoutSeconds: z.number().int().positive().max(300).optional(),
+    gretlCliPath: z.string().optional(),
+    displayInGretl: z
+      .boolean()
+      .optional()
+      .describe("Open the generated help script in Gretl GUI. Defaults to false for this reference tool."),
+    gretlGuiPath: z.string().optional()
+  },
+  async ({ includeFunctions, includePackageHelp, timeoutSeconds, gretlCliPath, displayInGretl, gretlGuiPath }) =>
+    runScriptTool({
+      script: buildCapabilitiesScript({ includeFunctions, includePackageHelp }),
+      timeoutSeconds: timeoutSeconds ?? 30,
+      safeMode: true,
+      keepWorkspace: false,
+      gretlCliPath,
+      displayInGretl: displayInGretl ?? false,
+      gretlGuiPath
+    })
+);
+
+server.tool(
+  "gretl_package",
+  "Install, query, run samples for, unload, remove, or index Gretl function/data packages using the native pkg command.",
+  {
+    action: z
+      .enum(["install", "query", "run-sample", "unload", "remove", "index"])
+      .describe("Gretl pkg action to perform."),
+    packageName: z
+      .string()
+      .optional()
+      .describe("Package name, local package path, URL, or addons for index. Required except index defaults to addons."),
+    local: z.boolean().default(false).describe("Use pkg --local for a local .gfn or .zip package file."),
+    quiet: z.boolean().default(false).describe("Use pkg --quiet."),
+    verbose: z.boolean().default(false).describe("Use pkg --verbose."),
+    staging: z.boolean().default(false).describe("Use pkg --staging for package installs from Gretl staging."),
+    timeoutSeconds: z.number().int().positive().max(300).optional(),
+    keepWorkspace: z.boolean().default(true),
+    workspaceRoot: z.string().optional(),
+    gretlCliPath: z.string().optional(),
+    displayInGretl: z
+      .boolean()
+      .optional()
+      .describe("Open the generated package command script in Gretl GUI. Defaults to false for package actions."),
+    gretlGuiPath: z.string().optional(),
+    guiNewInstance: z.boolean().default(true)
+  },
+  async (input) => runPackageTool(input)
+);
+
+server.tool(
+  "gretl_make_package",
+  "Build a Gretl function package (.gfn or .zip) using the native makepkg command.",
+  {
+    packagePath: safePathSchema.describe("Output path ending in .gfn or .zip."),
+    index: z.boolean().default(false).describe("Write the auxiliary package XML index file."),
+    translations: z.boolean().default(false).describe("Write the auxiliary i18n C strings file."),
+    quiet: z.boolean().default(false).describe("Use makepkg --quiet."),
+    timeoutSeconds: z.number().int().positive().max(300).optional(),
+    keepWorkspace: z.boolean().default(true),
+    workspaceRoot: z.string().optional(),
+    gretlCliPath: z.string().optional(),
+    displayInGretl: z
+      .boolean()
+      .optional()
+      .describe("Open the generated makepkg script in Gretl GUI. Defaults to false for package building."),
+    gretlGuiPath: z.string().optional(),
+    guiNewInstance: z.boolean().default(true)
+  },
+  async (input) => runMakePackageTool(input)
 );
 
 server.tool(
@@ -320,8 +484,51 @@ async function runScriptTool(input: {
   guiNewInstance?: boolean;
 }) {
   try {
-    const result = await runGretlScript(input);
-    const gretlGui = await maybeOpenInGretl(input);
+    const result = await runGretlScript(retainWorkspaceForGui(input));
+    return formatGretlRunResult(result, input);
+  } catch (error) {
+    return formatToolError(error);
+  }
+}
+
+async function runCommandsTool(input: {
+  commands: string[];
+  timeoutSeconds?: number;
+  safeMode?: boolean;
+  keepWorkspace?: boolean;
+  workspaceRoot?: string;
+  gretlCliPath?: string;
+  displayInGretl?: boolean;
+  gretlGuiPath?: string;
+  guiNewInstance?: boolean;
+}) {
+  try {
+    const result = await runGretlCommands(retainWorkspaceForGui(input));
+    return formatGretlRunResult(result, input);
+  } catch (error) {
+    return formatToolError(error);
+  }
+}
+
+async function runScriptFileTool(input: {
+  scriptPath: string;
+  timeoutSeconds?: number;
+  safeMode?: boolean;
+  workingDirectory?: string;
+  scriptOpt?: number;
+  gretlCliPath?: string;
+  displayInGretl?: boolean;
+  gretlGuiPath?: string;
+  guiNewInstance?: boolean;
+}) {
+  try {
+    const result = await runGretlScriptFile(input);
+    const gretlGui = await maybeOpenInGretl({
+      scriptPath: result.scriptPath,
+      displayInGretl: input.displayInGretl,
+      gretlGuiPath: input.gretlGuiPath,
+      guiNewInstance: input.guiNewInstance
+    });
 
     return asMcpText({
       ok: result.exitCode === 0 && !result.timedOut,
@@ -329,7 +536,7 @@ async function runScriptTool(input: {
       timedOut: result.timedOut,
       command: result.command,
       args: result.args,
-      workspace: result.workspace,
+      workingDirectory: result.workingDirectory,
       scriptPath: result.scriptPath,
       artifacts: result.artifacts,
       gretlGui,
@@ -337,24 +544,134 @@ async function runScriptTool(input: {
       stderr: result.stderr
     });
   } catch (error) {
-    if (error instanceof GretlSafetyError) {
-      return asMcpText({
-        ok: false,
-        error: error.message,
-        hint: "Set safeMode to false only when running trusted local Gretl scripts."
-      });
-    }
-
-    const message = error instanceof Error ? error.message : String(error);
-    return asMcpText({
-      ok: false,
-      error: message
-    });
+    return formatToolError(error);
   }
 }
 
+async function runPackageTool(input: {
+  action: "install" | "query" | "run-sample" | "unload" | "remove" | "index";
+  packageName?: string;
+  local?: boolean;
+  quiet?: boolean;
+  verbose?: boolean;
+  staging?: boolean;
+  timeoutSeconds?: number;
+  keepWorkspace?: boolean;
+  workspaceRoot?: string;
+  gretlCliPath?: string;
+  displayInGretl?: boolean;
+  gretlGuiPath?: string;
+  guiNewInstance?: boolean;
+}) {
+  try {
+    const guiInput = {
+      ...input,
+      displayInGretl: input.displayInGretl ?? false
+    };
+    const result = await runGretlPackage(retainWorkspaceForGui(guiInput));
+    return formatGretlRunResult(result, guiInput);
+  } catch (error) {
+    return formatToolError(error);
+  }
+}
+
+async function runMakePackageTool(input: {
+  packagePath: string;
+  index?: boolean;
+  translations?: boolean;
+  quiet?: boolean;
+  timeoutSeconds?: number;
+  keepWorkspace?: boolean;
+  workspaceRoot?: string;
+  gretlCliPath?: string;
+  displayInGretl?: boolean;
+  gretlGuiPath?: string;
+  guiNewInstance?: boolean;
+}) {
+  try {
+    const guiInput = {
+      ...input,
+      displayInGretl: input.displayInGretl ?? false
+    };
+    const result = await runGretlMakePackage(retainWorkspaceForGui(guiInput));
+    return formatGretlRunResult(result, guiInput);
+  } catch (error) {
+    return formatToolError(error);
+  }
+}
+
+function retainWorkspaceForGui<T extends { keepWorkspace?: boolean; displayInGretl?: boolean }>(
+  input: T
+): T {
+  if (input.keepWorkspace === false && shouldDisplayInGretl(input.displayInGretl).enabled) {
+    return {
+      ...input,
+      keepWorkspace: true
+    };
+  }
+
+  return input;
+}
+
+async function formatGretlRunResult(
+  result: {
+    exitCode: number | null;
+    timedOut: boolean;
+    command: string;
+    args: string[];
+    workspace: string;
+    scriptPath: string;
+    artifacts: unknown[];
+    stdout: string;
+    stderr: string;
+  },
+  guiInput: {
+    displayInGretl?: boolean;
+    gretlGuiPath?: string;
+    guiNewInstance?: boolean;
+  }
+) {
+  const gretlGui = await maybeOpenInGretl({
+    scriptPath: result.scriptPath,
+    displayInGretl: guiInput.displayInGretl,
+    gretlGuiPath: guiInput.gretlGuiPath,
+    guiNewInstance: guiInput.guiNewInstance
+  });
+
+  return asMcpText({
+    ok: result.exitCode === 0 && !result.timedOut,
+    exitCode: result.exitCode,
+    timedOut: result.timedOut,
+    command: result.command,
+    args: result.args,
+    workspace: result.workspace,
+    scriptPath: result.scriptPath,
+    artifacts: result.artifacts,
+    gretlGui,
+    stdout: result.stdout,
+    stderr: result.stderr
+  });
+}
+
+function formatToolError(error: unknown) {
+  if (error instanceof GretlSafetyError) {
+    return asMcpText({
+      ok: false,
+      error: error.message,
+      hint: "Set safeMode to false only when running trusted local Gretl scripts."
+    });
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  return asMcpText({
+    ok: false,
+    error: message
+  });
+}
+
 async function maybeOpenInGretl(input: {
-  script: string;
+  script?: string;
+  scriptPath?: string;
   safeMode?: boolean;
   workspaceRoot?: string;
   displayInGretl?: boolean;
@@ -371,7 +688,9 @@ async function maybeOpenInGretl(input: {
 
   try {
     const result = await launchGretlGui({
-      script: input.script,
+      filePath: input.scriptPath,
+      script: input.scriptPath ? undefined : input.script,
+      runScript: Boolean(input.scriptPath),
       safeMode: input.safeMode,
       workspaceRoot: input.workspaceRoot,
       gretlGuiPath: input.gretlGuiPath,

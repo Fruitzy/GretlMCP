@@ -1,0 +1,29 @@
+# Example: homework-style F test for equality of variances.
+# Based on the potato-price task in E:\Gretl Showcase\Homework student.docx.
+
+scalar alpha = 0.01
+scalar n_brno = 18
+scalar var_brno = 45
+scalar n_prague = 27
+scalar var_prague = 100
+
+# Put the larger sample variance in the numerator for the right-tail F test.
+scalar fstat = var_prague / var_brno
+scalar df_num = n_prague - 1
+scalar df_den = n_brno - 1
+scalar cv = critical(F, df_num, df_den, alpha / 2)
+scalar p_right = pvalue(F, df_num, df_den, fstat)
+
+printf "H0: sigma_brno^2 = sigma_prague^2\n"
+printf "H1: sigma_brno^2 != sigma_prague^2\n"
+printf "alpha = %.3f\n", alpha
+printf "F statistic = %.5f\n", fstat
+printf "Right-tail critical value = %.5f\n", cv
+printf "Right-tail p-value = %.5f\n", p_right
+printf "Two-sided p-value = %.5f\n", 2 * p_right
+
+if fstat > cv
+    printf "Decision: reject H0 at the %.1f%% significance level.\n", 100 * alpha
+else
+    printf "Decision: do not reject H0 at the %.1f%% significance level.\n", 100 * alpha
+endif

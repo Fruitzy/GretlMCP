@@ -2,17 +2,17 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.fruitzy/gretl-mcp",
   "title": "Gretl MCP",
-  "description": "Control Gretl econometrics workflows through MCP using gretlcli and Hansl scripts.",
+  "description": "Control Gretl econometrics workflows through MCP using gretlcli, Hansl scripts, command execution, and package tools.",
   "repository": {
     "url": "https://github.com/Fruitzy/GretlMCP",
     "source": "github"
   },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "gretl-mcp",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "transport": {
         "type": "stdio"
       },

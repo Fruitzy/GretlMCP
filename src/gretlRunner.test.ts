@@ -4,11 +4,17 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   GretlSafetyError,
+  buildCapabilitiesScript,
+  buildCommandsScript,
   buildDatasetSummaryScript,
   buildOlsScript,
+  buildMakePackageScript,
+  buildPackageScript,
   resolveExistingDatasetPath,
   resolveGretlCli,
+  runGretlCommands,
   runGretlScript,
+  runGretlScriptFile,
   runGretlVersion,
   validateSafeScript
 } from "./gretlRunner.js";
@@ -29,10 +35,29 @@ describe("Gretl runner", () => {
     expect(buildDatasetSummaryScript("C:\\data\\sample.csv")).toContain("summary");
   });
 
+  it("builds command and capability scripts for raw Gretl access", () => {
+    const commandScript = buildCommandsScript([" nulldata 10 ", "summary"]);
+    expect(commandScript).toContain("nulldata 10");
+    expect(commandScript).toContain("summary");
+    expect(
+      buildCapabilitiesScript({ includeFunctions: false, includePackageHelp: false })
+    ).toBe("help");
+  });
+
   it("builds OLS scripts with constants by default", () => {
     expect(buildOlsScript("sample.gdt", "y", ["x1", "x2"])).toContain(
       "ols y const x1 x2"
     );
+  });
+
+  it("builds package management scripts", () => {
+    expect(
+      buildPackageScript({ action: "query", packageName: "armax", quiet: true })
+    ).toBe("pkg query armax --quiet");
+    expect(buildPackageScript({ action: "index" })).toBe("pkg index addons");
+    expect(
+      buildMakePackageScript({ packagePath: "example.gfn", index: true })
+    ).toContain("makepkg");
   });
 
   it("rejects invalid OLS variable names", () => {
@@ -70,6 +95,42 @@ describe("Gretl runner", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toMatch(/Summary statistics/i);
+  });
+
+  it("runs raw Gretl command lines", async () => {
+    const result = await runGretlCommands({
+      commands: ["nulldata 8", "series x = normal()", "summary x"],
+      timeoutSeconds: 20,
+      safeMode: true,
+      keepWorkspace: false
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toMatch(/Summary statistics/i);
+  });
+
+  it("runs an existing Gretl script file", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "gretl-mcp-script-file-"));
+    try {
+      const scriptPath = join(tempDir, "sample.inp");
+      await writeFile(
+        scriptPath,
+        "nulldata 8\nseries x = normal()\nsummary x\n",
+        "utf8"
+      );
+
+      const result = await runGretlScriptFile({
+        scriptPath,
+        timeoutSeconds: 20,
+        safeMode: true
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.workingDirectory).toBe(tempDir);
+      expect(result.stdout).toMatch(/Summary statistics/i);
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 
   it("can summarize a CSV through Gretl", async () => {

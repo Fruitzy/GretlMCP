@@ -4,16 +4,23 @@ Gretl MCP is a Model Context Protocol server for controlling
 [Gretl](https://gretl.sourceforge.net/) econometrics workflows through
 `gretlcli`.
 
-It lets MCP clients run Gretl/Hansl scripts, inspect Gretl help, summarize
-datasets, and estimate OLS models. The generic `gretl_run_script` tool is the
-advanced path for using Gretl's native scripting surface.
+It lets MCP clients run Gretl/Hansl scripts, raw Gretl command lines, existing
+`.inp` files, package operations, package builds, help lookups, dataset
+summaries, and OLS models. The generic `gretl_run_script` tool is the main path
+for prompt-generated Gretl workflows: the client writes Hansl from the user's
+request, runs it through Gretl, and returns Gretl's output plus generated
+artifacts.
 
 ## Key Features
 
 - Scriptable Gretl control through `gretlcli`.
 - Optional visible Gretl GUI launch mode through `gretl.exe`.
+- Capability discovery for Gretl commands, functions, and package commands.
+- Generic execution tools for full Hansl scripts, command lists, and local
+  `.inp` script files.
+- Package tools for `pkg` and `makepkg` workflows from the Gretl Function
+  Package Guide.
 - High-level tools for version checks, command help, dataset summaries, and OLS.
-- Advanced `gretl_run_script` tool for trusted Hansl workflows.
 - Stdio transport, compatible with common MCP clients.
 - Safe defaults for arbitrary scripts, with documented escape hatches.
 
@@ -151,18 +158,29 @@ gretl-mcp --version
 - `gretl_version`: checks Gretl availability.
 - `gretl_gui_version`: checks Gretl GUI availability.
 - `gretl_gui_launch`: launches the visible Gretl desktop GUI.
+- `gretl_capabilities`: lists installed Gretl commands, functions, and package help.
 - `gretl_run_script`: runs a Gretl/Hansl script and returns output/artifacts.
+- `gretl_run_commands`: runs raw Gretl command lines in order.
+- `gretl_run_script_file`: runs an existing local `.inp` file.
+- `gretl_package`: runs native `pkg` actions such as install, query, run-sample, unload, remove, and index.
+- `gretl_make_package`: builds `.gfn` or `.zip` function packages with `makepkg`.
 - `gretl_help`: returns Gretl help for a command.
 - `gretl_dataset_summary`: opens a local dataset and returns summary statistics.
 - `gretl_ols`: opens a local dataset and estimates an OLS model.
 
 ## Safety
 
-`gretl_run_script` defaults to `safeMode: true`, which blocks common shell-like
-commands and absolute file reads/writes. This is a guardrail, not a complete
-sandbox. Use `safeMode: false` only for trusted local work.
+`gretl_run_script`, `gretl_run_commands`, and `gretl_run_script_file` default to
+`safeMode: true`, which blocks common shell-like commands and absolute file
+reads/writes. This is a guardrail, not a complete sandbox. Use `safeMode: false`
+only for trusted local work.
 
 Dataset helper tools reject URLs and require paths to existing local files.
+
+## Examples
+
+- `examples/homework-variance-ftest.inp`: Gretl script for a homework-style
+  F test with critical-value and p-value calculations.
 
 ## GUI Mode
 
@@ -173,6 +191,11 @@ the agent and a visible Gretl script window for the user.
 
 Set `displayInGretl: false` on a tool call, or set
 `GRETLMCP_OPEN_GUI=false`, to disable this behavior.
+
+Package-management tools default to text output only, because installing,
+removing, or building packages already has side effects. Pass
+`displayInGretl: true` if you want the generated package script opened in the
+desktop GUI.
 
 `gretl_gui_launch` can also be called directly. It starts the real Gretl desktop
 application, opens a local dataset/script file, or writes a prompted Hansl script
@@ -191,7 +214,14 @@ npm run typecheck
 npm test
 npm run build
 npm run smoke
+npm run stress
 ```
+
+`npm run stress` drives the built MCP server through broader prompt-style
+workflows: NLS, mixed-frequency compaction, panel models, GARCH graphs, IV
+simulation, and a reproducible project. The foreign-language stress case is
+dependency-gated and requires a real Python, Rscript, or Octave executable on
+`PATH`.
 
 Run the built server:
 
