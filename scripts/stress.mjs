@@ -3,7 +3,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { delimiter, dirname, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -14,6 +14,11 @@ const gretlRoot = await resolveGretlRoot();
 const fedstlPath = join(gretlRoot, "db", "fedstl.bin");
 const abdataPath = join(gretlRoot, "data", "misc", "abdata.gdt");
 const greeneConsumptionPath = join(gretlRoot, "data", "greene", "greene11_3.gdt");
+const externalRuntimePath = await resolveExternalRuntimePath();
+
+if (externalRuntimePath) {
+  prependProcessPath(dirname(externalRuntimePath));
+}
 
 await access(distIndex, constants.R_OK).catch(() => {
   throw new Error("dist/index.js not found. Run npm run build before npm run stress.");
@@ -273,6 +278,55 @@ function commandWorks(command, args) {
     child.once("error", () => resolvePromise(false));
     child.once("close", (code) => resolvePromise(code === 0));
   });
+}
+
+async function resolveExternalRuntimePath() {
+  const commands = [
+    { command: "python", args: ["--version"] },
+    { command: "Rscript", args: ["--version"] },
+    { command: "octave", args: ["--version"] }
+  ];
+
+  for (const candidate of commands) {
+    if (await commandWorks(candidate.command, candidate.args)) {
+      return undefined;
+    }
+  }
+
+  for (const pythonPath of windowsPythonCandidates()) {
+    try {
+      await access(pythonPath, constants.X_OK);
+      if (await commandWorks(pythonPath, ["--version"])) {
+        return pythonPath;
+      }
+    } catch {
+      // Try the next common user-scoped Python install path.
+    }
+  }
+
+  return undefined;
+}
+
+function windowsPythonCandidates() {
+  if (process.platform !== "win32" || !process.env.LOCALAPPDATA) {
+    return [];
+  }
+
+  return ["Python313", "Python312", "Python311", "Python310"].map((versionDir) =>
+    join(process.env.LOCALAPPDATA, "Programs", "Python", versionDir, "python.exe")
+  );
+}
+
+function prependProcessPath(directory) {
+  const pathKey = Object.keys(process.env).find((key) => key.toLowerCase() === "path") ?? "PATH";
+  const currentPath = process.env[pathKey] ?? "";
+  const existing = currentPath.split(delimiter).filter(Boolean);
+
+  if (existing.some((entry) => entry.toLowerCase() === directory.toLowerCase())) {
+    return;
+  }
+
+  process.env[pathKey] = [directory, ...existing].join(delimiter);
 }
 
 async function resolveGretlRoot() {
