@@ -1,0 +1,92 @@
+open fedstl.bin --quiet
+setobs 4 2000:1
+smpl ; 2024:4
+
+data gdpc1
+data unrate --compact=average --name=unrate_avg
+data cpiaucsl --compact=last --name=cpi_q
+data fedfunds --compact=average --name=fedfunds_avg
+data indpro --compact=average --name=indpro_avg
+
+series lgdp = log(gdpc1)
+series lcpi = log(cpi_q)
+series lindpro = log(indpro_avg)
+series gdp_growth = 400*(lgdp - lgdp(-1))
+series inflation = 400*(lcpi - lcpi(-1))
+series ip_growth = 400*(lindpro - lindpro(-1))
+series dunrate = unrate_avg - unrate_avg(-1)
+series drate = fedfunds_avg - fedfunds_avg(-1)
+
+smpl 2000:2 ;
+gnuplot gdpc1 unrate_avg cpi_q fedfunds_avg indpro_avg --time-series --with-lines --output=01_original_macro.png { set title 'Original macro variables'; }
+gnuplot gdp_growth inflation ip_growth dunrate drate --time-series --with-lines --output=02_transformed_macro.png { set title 'Transformed and stationary macro variables'; }
+
+smpl 2000:2 2019:4
+ols inflation const inflation(-1) inflation(-2) inflation(-3) inflation(-4) --quiet
+series fit_ar = $yhat
+smpl 2020:1 2024:4
+fcast fc_ar --dynamic --quiet
+smpl full
+series err_ar = inflation - fc_ar
+
+smpl 2000:2 2019:4
+arima 1 0 1 ; inflation --quiet
+series fit_arima = $yhat
+smpl 2020:1 2024:4
+fcast fc_arima --dynamic --quiet
+smpl full
+series err_arima = inflation - fc_arima
+
+smpl 2000:2 2019:4
+var 2 inflation ip_growth dunrate drate --quiet
+smpl 2000:4 2019:4
+fcast inflation --quiet
+series fit_var = $fcast
+smpl 2020:1 2024:4
+fcast inflation --quiet
+series fc_var = $fcast
+smpl full
+series err_var = inflation - fc_var
+
+smpl 2000:4 2019:4
+gnuplot inflation fit_ar fit_arima fit_var --time-series --with-lines --output=03_actual_vs_fitted.png { set title 'Actual vs fitted inflation (training sample)'; }
+smpl 2020:1 2024:4
+gnuplot inflation fc_ar fc_arima fc_var --time-series --with-lines --output=04_actual_vs_forecast.png { set title 'Actual vs forecast inflation (test sample)'; }
+gnuplot err_ar err_arima err_var --time-series --with-lines --output=05_forecast_errors.png { set title 'Forecast errors in test sample'; }
+
+scalar rmse_ar = sqrt(mean(err_ar^2))
+scalar mae_ar = mean(abs(err_ar))
+scalar rmse_arima = sqrt(mean(err_arima^2))
+scalar mae_arima = mean(abs(err_arima))
+scalar rmse_var = sqrt(mean(err_var^2))
+scalar mae_var = mean(abs(err_var))
+
+outfile 06_rmse_mae_table.txt --quiet
+    printf "RMSE/MAE table for test sample 2020:1-2024:4\n"
+    printf "Model,RMSE,MAE\n"
+    printf "AR,%.6f,%.6f\n", rmse_ar, mae_ar
+    printf "ARIMA,%.6f,%.6f\n", rmse_arima, mae_arima
+    printf "VAR,%.6f,%.6f\n", rmse_var, mae_var
+    if rmse_ar < rmse_arima && rmse_ar < rmse_var
+        printf "Winner by RMSE: AR\n"
+    elif rmse_arima < rmse_ar && rmse_arima < rmse_var
+        printf "Winner by RMSE: ARIMA\n"
+    else
+        printf "Winner by RMSE: VAR\n"
+    endif
+end outfile
+
+printf "FORECAST DASHBOARD SUMMARY\n"
+printf "Target variable: quarterly inflation\n"
+printf "Test sample: 2020:1-2024:4\n"
+printf "model rmse mae\n"
+printf "AR %.6f %.6f\n", rmse_ar, mae_ar
+printf "ARIMA %.6f %.6f\n", rmse_arima, mae_arima
+printf "VAR %.6f %.6f\n", rmse_var, mae_var
+if rmse_ar < rmse_arima && rmse_ar < rmse_var
+    printf "Winner by RMSE: AR\n"
+elif rmse_arima < rmse_ar && rmse_arima < rmse_var
+    printf "Winner by RMSE: ARIMA\n"
+else
+    printf "Winner by RMSE: VAR\n"
+endif

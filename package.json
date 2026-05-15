@@ -4,16 +4,16 @@
   "description": "Model Context Protocol server for Gretl econometrics workflows via gretlcli.",
   "type": "module",
   "main": "./dist/index.js",
-  "mcpName": "io.github.fruitzy/gretl-mcp",
+  "mcpName": "io.github.ondrejlapes/gretl-mcp",
   "license": "MIT",
   "author": "Fruitzy",
-  "homepage": "https://github.com/Fruitzy/GretlMCP#readme",
+  "homepage": "https://github.com/OndrejLapes/GretlMCP#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Fruitzy/GretlMCP.git"
+    "url": "git+https://github.com/OndrejLapes/GretlMCP.git"
   },
   "bugs": {
-    "url": "https://github.com/Fruitzy/GretlMCP/issues"
+    "url": "https://github.com/OndrejLapes/GretlMCP/issues"
   },
   "keywords": [
     "gretl",
