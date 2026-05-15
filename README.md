@@ -57,7 +57,7 @@ Verify Gretl:
 Use the GitHub install path:
 
 ```powershell
-git clone https://github.com/Fruitzy/GretlMCP.git
+git clone https://github.com/OndrejLapes/GretlMCP.git
 cd GretlMCP
 npm install
 npm run build
