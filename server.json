@@ -1,0 +1,51 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ondrejlapes/gretl-mcp",
+  "title": "Gretl MCP",
+  "description": "Control Gretl econometrics workflows through MCP using gretlcli, Hansl scripts, command execution, and package tools.",
+  "repository": {
+    "url": "https://github.com/OndrejLapes/GretlMCP",
+    "source": "github"
+  },
+  "version": "0.2.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "gretl-mcp",
+      "version": "0.2.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "GRETL_CLI",
+          "description": "Optional explicit path to gretlcli or gretlcli.exe.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "GRETL_GUI",
+          "description": "Optional explicit path to the visible Gretl GUI executable.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "GRETLMCP_WORKSPACE_DIR",
+          "description": "Optional parent directory for Gretl run workspaces and generated artifacts.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "GRETLMCP_OPEN_GUI",
+          "description": "Set to false to prevent script-running tools from opening visible Gretl GUI windows by default.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}

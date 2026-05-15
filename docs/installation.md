@@ -24,12 +24,33 @@ Verify:
 & C:\Users\YOUR_USER\tools\gretl\gretlcli.exe --version
 ```
 
+## Install Gretl on macOS
+
+If available on your setup:
+
+```bash
+brew install gretl
+gretlcli --version
+```
+
+You can also install from https://gretl.sourceforge.net/ using platform packages.
+
+## Install Gretl on Linux
+
+Debian/Ubuntu example:
+
+```bash
+sudo apt-get update
+sudo apt-get install gretl
+gretlcli --version
+```
+
 ## Install Gretl MCP from GitHub
 
-Use this path right now. The npm package name `gretl-mcp` is not published yet.
+Use this when you want a local source checkout:
 
 ```powershell
-git clone https://github.com/Fruitzy/GretlMCP.git
+git clone https://github.com/OndrejLapes/GretlMCP.git
 cd GretlMCP
 npm install
 npm run build

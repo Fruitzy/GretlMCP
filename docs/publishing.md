@@ -19,14 +19,15 @@ Files to update:
 - `examples/mcp-config.json`
 
 If you want a scoped npm package, rename the package from `gretl-mcp` to
-`@YOUR_NPM_USERNAME/gretl-mcp` and update `server.template.json`.
+`@YOUR_NPM_USERNAME/gretl-mcp` and update `server.json` plus
+`server.template.json`.
 
 ## GitHub
 
-Create a new public GitHub repository named `gretl-mcp`, then push:
+Create a new public GitHub repository, then push:
 
 ```powershell
-git remote add origin https://github.com/Fruitzy/GretlMCP.git
+git remote add origin https://github.com/OndrejLapes/GretlMCP.git
 git branch -M main
 git push -u origin main
 ```
@@ -48,16 +49,13 @@ After publish, verify the install path:
 npx -y gretl-mcp@latest --version
 ```
 
+If `npm publish` fails with auth or 2FA prompts, complete those in your terminal
+and rerun the same command.
+
 ## MCP Registry
 
 The MCP Registry requires npm metadata verification. The `mcpName` field in
 `package.json` must exactly match the `name` field in `server.json`.
-
-Create the real registry file from the template:
-
-```powershell
-Copy-Item server.template.json server.json
-```
 
 Then replace placeholders and publish with the official `mcp-publisher` tool:
 

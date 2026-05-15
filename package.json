@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "mcpName": "io.github.ondrejlapes/gretl-mcp",
   "license": "MIT",
-  "author": "Fruitzy",
+  "author": "Ondrej Lapes",
   "homepage": "https://github.com/OndrejLapes/GretlMCP#readme",
   "repository": {
     "type": "git",
@@ -17,14 +17,17 @@
   },
   "keywords": [
     "gretl",
+    "hansl",
     "econometrics",
     "mcp",
     "model-context-protocol",
-    "hansl",
-    "statistics"
+    "statistics",
+    "ai-agent",
+    "claude-gretl",
+    "mcp-econometrics"
   ],
   "bin": {
-    "gretl-mcp": "./dist/index.js"
+    "gretl-mcp": "dist/index.js"
   },
   "files": [
     "dist",
@@ -32,7 +35,8 @@
     "LICENSE",
     "docs",
     "examples",
-    "server.template.json"
+    "server.template.json",
+    "server.json"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",

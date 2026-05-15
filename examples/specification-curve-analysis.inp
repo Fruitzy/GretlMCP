@@ -1,0 +1,193 @@
+clear
+set echo off
+set messages off
+set verbose off
+set warnings off
+
+# Cross-sectional women wage dataset (Mroz 1987)
+open mroz87.gdt --quiet
+
+# Keep observed wages and define transformed variables
+smpl WW > 0 --restrict
+series lWW = ln(WW)
+series WE2 = WE^2
+series WA2 = WA^2
+series HA2 = HA^2
+series lnFAMINC = ln(FAMINC + 1)
+
+series model_id = NA
+series coef_we = NA
+series coef_se = NA
+series ci_low = NA
+series ci_high = NA
+series controls_id = NA
+series form_id = NA
+series sample_id = NA
+series robust_id = NA
+series nobs_model = NA
+series r2_model = NA
+
+outfile specification_variants_table.csv --quiet
+printf "model_id,controls,functional_form,sample,robust,coef_WE,se_WE,ci_low,ci_high,nobs,r2\n"
+
+scalar m = 0
+string controls = ""
+string form = ""
+string sample_name = ""
+string robust_name = ""
+loop c=1..4 --quiet
+    loop f=0..1 --quiet
+        loop s=0..1 --quiet
+            loop r=0..1 --quiet
+                smpl full
+                smpl WW > 0 --restrict
+                if s == 1
+                    smpl WA >= 35 && WA <= 50 --restrict
+                endif
+
+                if c == 1
+                    if f == 0
+                        if r == 0
+                            ols lWW const WE --quiet
+                        else
+                            ols lWW const WE --robust --quiet
+                        endif
+                    else
+                        if r == 0
+                            ols lWW const WE WE2 --quiet
+                        else
+                            ols lWW const WE WE2 --robust --quiet
+                        endif
+                    endif
+                elif c == 2
+                    if f == 0
+                        if r == 0
+                            ols lWW const WE WA HA --quiet
+                        else
+                            ols lWW const WE WA HA --robust --quiet
+                        endif
+                    else
+                        if r == 0
+                            ols lWW const WE WE2 WA HA WA2 HA2 --quiet
+                        else
+                            ols lWW const WE WE2 WA HA WA2 HA2 --robust --quiet
+                        endif
+                    endif
+                elif c == 3
+                    if f == 0
+                        if r == 0
+                            ols lWW const WE WA HA HE HW --quiet
+                        else
+                            ols lWW const WE WA HA HE HW --robust --quiet
+                        endif
+                    else
+                        if r == 0
+                            ols lWW const WE WE2 WA HA WA2 HA2 HE HW --quiet
+                        else
+                            ols lWW const WE WE2 WA HA WA2 HA2 HE HW --robust --quiet
+                        endif
+                    endif
+                else
+                    if f == 0
+                        if r == 0
+                            ols lWW const WE WA HA HE HW KL6 K618 FAMINC UN CIT --quiet
+                        else
+                            ols lWW const WE WA HA HE HW KL6 K618 FAMINC UN CIT --robust --quiet
+                        endif
+                    else
+                        if r == 0
+                            ols lWW const WE WE2 WA HA WA2 HA2 HE HW KL6 K618 lnFAMINC UN CIT --quiet
+                        else
+                            ols lWW const WE WE2 WA HA WA2 HA2 HE HW KL6 K618 lnFAMINC UN CIT --robust --quiet
+                        endif
+                    endif
+                endif
+
+                scalar m += 1
+                scalar b = $coeff(WE)
+                scalar se = $stderr(WE)
+                scalar lo = b - 1.96 * se
+                scalar hi = b + 1.96 * se
+                scalar n_model = $nobs
+                scalar r2_model_scalar = $rsq
+
+                smpl full
+                genr model_id[m] = m
+                genr coef_we[m] = b
+                genr coef_se[m] = se
+                genr ci_low[m] = lo
+                genr ci_high[m] = hi
+                genr controls_id[m] = c
+                genr form_id[m] = f
+                genr sample_id[m] = s
+                genr robust_id[m] = r
+                genr nobs_model[m] = n_model
+                genr r2_model[m] = r2_model_scalar
+
+                if c == 1
+                    controls = "WE only"
+                elif c == 2
+                    controls = "WE + ages"
+                elif c == 3
+                    controls = "WE + ages + spouse human capital"
+                else
+                    controls = "Full controls"
+                endif
+
+                if f == 0
+                    form = "Linear"
+                else
+                    form = "Nonlinear"
+                endif
+
+                if s == 0
+                    sample_name = "All wage earners"
+                else
+                    sample_name = "Prime age 35-50"
+                endif
+
+                if r == 0
+                    robust_name = "No"
+                else
+                    robust_name = "Yes"
+                endif
+
+                printf "%d,%s,%s,%s,%s,%.6f,%.6f,%.6f,%.6f,%.0f,%.6f\n", m, controls, form, sample_name, robust_name, b, se, lo, hi, n_model, r2_model_scalar
+            endloop
+        endloop
+    endloop
+endloop
+end outfile
+
+smpl 1 32
+series coef_sorted = sort(coef_we)
+series ci_low_sorted = sortby(coef_we, ci_low)
+series ci_high_sorted = sortby(coef_we, ci_high)
+series zero = 0
+
+# Visual deliverables
+gnuplot coef_sorted zero --time-series --with-lines --output=specification_curve_plot.png { set title 'Specification curve: coefficient on education (WE)'; set key off; }
+gnuplot coef_sorted ci_low_sorted ci_high_sorted zero --time-series --with-lines --output=coefficient_ci_plot.png { set title 'Education coefficient with 95% confidence interval'; set key outside; }
+freq coef_we --plot=coefficient_histogram.png
+
+scalar share_positive = mean(coef_we > 0)
+scalar share_ci_above_zero = mean(ci_low > 0)
+
+outfile specification_curve_summary.txt --quiet
+printf "Specification curve analysis: effect of education (WE) on log wage (lWW)\n"
+printf "Number of models: 32\n"
+printf "Min coefficient: %.6f\n", min(coef_we)
+printf "Median coefficient: %.6f\n", median(coef_we)
+printf "Max coefficient: %.6f\n", max(coef_we)
+printf "Share positive coefficients: %.4f\n", share_positive
+printf "Share 95%% CIs fully above zero: %.4f\n", share_ci_above_zero
+if share_ci_above_zero >= 0.80
+    printf "Interpretation: robust positive education effect across plausible specifications.\n"
+elif share_positive >= 0.80
+    printf "Interpretation: positive effect is common, but significance is fragile in several specifications.\n"
+else
+    printf "Interpretation: effect is fragile and not robust to specification choices.\n"
+endif
+end outfile
+
+printf "Specification curve analysis complete. Outputs: specification_curve_plot.png, coefficient_ci_plot.png, specification_variants_table.csv, coefficient_histogram.png, specification_curve_summary.txt\n"

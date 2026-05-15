@@ -1,8 +1,10 @@
 # Gretl MCP
 
-Gretl MCP is a Model Context Protocol server for controlling
-[Gretl](https://gretl.sourceforge.net/) econometrics workflows through
-`gretlcli`.
+[![npm version](https://img.shields.io/npm/v/gretl-mcp?label=npm)](https://www.npmjs.com/package/gretl-mcp)
+[![GitHub stars](https://img.shields.io/github/stars/OndrejLapes/GretlMCP?style=social)](https://github.com/OndrejLapes/GretlMCP)
+
+Built for AI agents: run Hansl/Gretl workflows, get graph screenshots, and view
+calculations in the real Gretl GUI.
 
 It lets MCP clients run Gretl/Hansl scripts, raw Gretl command lines, existing
 `.inp` files, package operations, package builds, help lookups, dataset
@@ -11,9 +13,7 @@ for prompt-generated Gretl workflows: the client writes Hansl from the user's
 request, runs it through Gretl, and returns Gretl's output plus generated
 artifacts.
 
-Right now the supported user install path is the GitHub checkout in this repo.
-The npm package name `gretl-mcp` is not published yet, so `npx gretl-mcp@latest`
-will not work until publication is completed.
+Keywords: Claude Gretl, MCP econometrics, Hansl AI, Gretl GUI automation.
 
 ## Key Features
 
@@ -34,27 +34,15 @@ will not work until publication is completed.
 - Gretl 2026b or newer with `gretlcli` available.
 - An MCP client that supports stdio servers.
 
-## Install Gretl
-
-Windows users can download Gretl from the official Windows page:
-
-https://gretl.sourceforge.net/win32/
-
-For a no-admin setup, extract the zip archive to:
-
-```text
-C:\Users\YOUR_USER\tools\gretl
-```
-
-Verify Gretl:
-
-```powershell
-& C:\Users\YOUR_USER\tools\gretl\gretlcli.exe --version
-```
-
 ## Getting Started
 
-Use the GitHub install path:
+One-command install (after npm publish):
+
+```powershell
+npx -y gretl-mcp@latest --version
+```
+
+Local install from GitHub:
 
 ```powershell
 git clone https://github.com/OndrejLapes/GretlMCP.git
@@ -80,7 +68,73 @@ Then point your MCP client at the built server:
 }
 ```
 
-After npm publication, the standard MCP config will be:
+## Visual Walkthrough
+
+Forecast output example (actual vs forecast):
+
+![Forecast actual vs forecast](docs/assets/forecast_actual_vs_forecast.png)
+
+Forecast error panel:
+
+![Forecast errors](docs/assets/forecast_errors.png)
+
+## Install Gretl
+
+### Windows
+
+Download Gretl from the official page:
+https://gretl.sourceforge.net/win32/
+
+For a no-admin setup, extract the zip archive to:
+
+```text
+C:\Users\YOUR_USER\tools\gretl
+```
+
+Verify:
+
+```powershell
+& C:\Users\YOUR_USER\tools\gretl\gretlcli.exe --version
+```
+
+### macOS
+
+Install via Homebrew (if available on your setup) or the Gretl project site:
+
+```bash
+brew install gretl
+gretlcli --version
+```
+
+### Linux
+
+Install from your distro packages, then verify:
+
+```bash
+sudo apt-get install gretl    # Debian/Ubuntu example
+gretlcli --version
+```
+
+## MCP Client Config
+
+Use this JSON config for stdio MCP clients:
+
+```json
+{
+  "mcpServers": {
+    "gretl": {
+      "command": "node",
+      "args": ["C:\\Users\\YOUR_USER\\GretlMCP\\dist\\index.js"],
+      "env": {
+        "GRETL_CLI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe",
+        "GRETL_GUI": "C:\\Users\\YOUR_USER\\tools\\gretl\\gretl.exe"
+      }
+    }
+  }
+}
+```
+
+After npm publication, the standard MCP config is:
 
 ```json
 {
@@ -101,13 +155,13 @@ After npm publication, the standard MCP config will be:
 
 ### Claude Code
 
-Use the local GitHub build now:
+Local GitHub build:
 
 ```powershell
 claude mcp add gretl node C:\Users\YOUR_USER\GretlMCP\dist\index.js
 ```
 
-After npm publication:
+npm install path:
 
 ```powershell
 claude mcp add gretl npx -y gretl-mcp@latest
@@ -115,7 +169,7 @@ claude mcp add gretl npx -y gretl-mcp@latest
 
 ### Codex
 
-Use the local GitHub build now:
+Local GitHub build:
 
 ```toml
 [mcp_servers.gretl]
@@ -127,7 +181,7 @@ GRETL_CLI = "C:\\Users\\YOUR_USER\\tools\\gretl\\gretlcli.exe"
 GRETL_GUI = "C:\\Users\\YOUR_USER\\tools\\gretl\\gretl.exe"
 ```
 
-After npm publication:
+npm install path:
 
 ```toml
 [mcp_servers.gretl]
@@ -154,6 +208,17 @@ args: C:\Users\YOUR_USER\GretlMCP\dist\index.js
 ```powershell
 code --add-mcp "{\"name\":\"gretl\",\"command\":\"node\",\"args\":[\"C:\\\\Users\\\\YOUR_USER\\\\GretlMCP\\\\dist\\\\index.js\"],\"env\":{\"GRETL_CLI\":\"C:\\\\Users\\\\YOUR_USER\\\\tools\\\\gretl\\\\gretlcli.exe\",\"GRETL_GUI\":\"C:\\\\Users\\\\YOUR_USER\\\\tools\\\\gretl\\\\gretl.exe\"}}"
 ```
+
+## Try It Quickly
+
+Ask your agent:
+
+```text
+Run a Gretl forecasting dashboard with AR, ARIMA, and VAR. Save plots and compare RMSE/MAE.
+```
+
+The MCP response includes generated artifact paths, workspace/script paths, and
+GUI launch details.
 
 ## Configuration
 
@@ -208,6 +273,18 @@ Dataset helper tools reject URLs and require paths to existing local files.
 
 - `examples/homework-variance-ftest.inp`: Gretl script for a homework-style
   F test with critical-value and p-value calculations.
+- `examples/forecasting-dashboard.inp`: Macro forecasting dashboard with AR,
+  ARIMA, VAR, forecast plots, and an RMSE/MAE comparison table.
+- `examples/specification-curve-analysis.inp`: 32-model robustness sweep for an
+  education coefficient with curve, confidence bands, and histogram plots.
+
+## Use Cases
+
+- Econometrics teaching aid with visible Gretl GUI workflows.
+- Textbook replication and assignment automation.
+- Forecasting dashboards (AR/ARIMA/VAR) with artifact outputs.
+- Monte Carlo and stress-testing workflows for research.
+- Reproducible research pipelines via saved scripts and Gretl `.inp` files.
 
 ## GUI Mode
 
@@ -252,6 +329,14 @@ panel models, GARCH graphs, IV simulation, and a reproducible project. The
 foreign-language stress case is dependency-gated and requires a real Python,
 Rscript, or Octave executable on `PATH`.
 
+To surface stress outputs for docs or QA snapshots:
+
+```powershell
+npm run stress
+```
+
+Then inspect the reported workspace for generated graphs/tables.
+
 Run the built server:
 
 ```powershell
@@ -264,6 +349,11 @@ This project is structured for GitHub, npm, and MCP Registry metadata:
 
 - GitHub hosts source code, issues, docs, releases, and CI.
 - npm will provide the easiest user install path after publication.
-- `server.template.json` is ready to become `server.json` for registry publish.
+- `server.json` is included for registry publish.
 
 Before publishing to npm or the MCP Registry, review `docs/publishing.md`.
+
+## Community
+
+Issues and pull requests are welcome. See `CONTRIBUTING.md` for contribution
+flow and expectations.
