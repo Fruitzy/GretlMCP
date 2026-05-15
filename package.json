@@ -1,10 +1,10 @@
 {
   "name": "gretl-mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Model Context Protocol server for Gretl econometrics workflows via gretlcli.",
   "type": "module",
   "main": "./dist/index.js",
-  "mcpName": "io.github.ondrejlapes/gretl-mcp",
+  "mcpName": "io.github.OndrejLapes/gretl-mcp",
   "license": "MIT",
   "author": "Ondrej Lapes",
   "homepage": "https://github.com/OndrejLapes/GretlMCP#readme",
