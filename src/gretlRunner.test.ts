@@ -7,9 +7,11 @@ import {
   buildCapabilitiesScript,
   buildCommandsScript,
   buildDatasetSummaryScript,
+  buildGuideModeScript,
   buildOlsScript,
   buildMakePackageScript,
   buildPackageScript,
+  parseGuideFindings,
   resolveExistingDatasetPath,
   resolveGretlCli,
   runGretlCommands,
@@ -48,6 +50,68 @@ describe("Gretl runner", () => {
     expect(buildOlsScript("sample.gdt", "y", ["x1", "x2"])).toContain(
       "ols y const x1 x2"
     );
+  });
+
+  it("builds native guide mode scripts for demo OLS diagnostics", () => {
+    const guide = buildGuideModeScript();
+
+    expect(guide.usesDemoData).toBe(true);
+    expect(guide.guideSteps).toHaveLength(6);
+    expect(guide.commonProblems).toContain(
+      "Heteroskedasticity: standard errors can be misleading even when coefficients look reasonable."
+    );
+    expect(guide.script).toContain("GretlMCP native guide mode");
+    expect(guide.script).toContain("modtest --white --silent");
+    expect(guide.script).toContain("leverage --save --overwrite --quiet");
+    expect(guide.script).toContain("@@GRETLMCP_FINDING|warning|heteroskedasticity");
+  });
+
+  it("builds native guide mode scripts for user datasets", () => {
+    const guide = buildGuideModeScript({
+      datasetPath: "sample.gdt",
+      dependentVariable: "y",
+      independentVariables: ["x1", "x2"],
+      learningLevel: "advanced"
+    });
+
+    expect(guide.usesDemoData).toBe(false);
+    expect(guide.script).toContain("open \"sample.gdt\"");
+    expect(guide.script).toContain("ols y const x1 x2");
+    expect(guide.teachingNotes.at(-1)).toContain("identification");
+  });
+
+  it("rejects partial guide mode dataset inputs", () => {
+    expect(() =>
+      buildGuideModeScript({
+        datasetPath: "sample.gdt",
+        dependentVariable: "y"
+      })
+    ).toThrow("Guide mode needs datasetPath");
+  });
+
+  it("parses guide mode diagnostic findings", () => {
+    expect(
+      parseGuideFindings(
+        [
+          "ignored",
+          "@@GRETLMCP_FINDING|warning|heteroskedasticity|Residual variance changes.|Try robust standard errors.",
+          "@@GRETLMCP_FINDING|info|reset_not_rejected|RESET did not reject.|Keep checking."
+        ].join("\n")
+      )
+    ).toEqual([
+      {
+        severity: "warning",
+        code: "heteroskedasticity",
+        message: "Residual variance changes.",
+        guidance: "Try robust standard errors."
+      },
+      {
+        severity: "info",
+        code: "reset_not_rejected",
+        message: "RESET did not reject.",
+        guidance: "Keep checking."
+      }
+    ]);
   });
 
   it("builds package management scripts", () => {

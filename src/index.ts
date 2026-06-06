@@ -14,8 +14,10 @@ import {
   GretlSafetyError,
   buildCapabilitiesScript,
   buildDatasetSummaryScript,
+  buildGuideModeScript,
   buildHelpScript,
   buildOlsScript,
+  parseGuideFindings,
   resolveExistingDatasetPath,
   runGretlCommands,
   runGretlMakePackage,
@@ -162,6 +164,50 @@ server.tool(
       });
     }
   }
+);
+
+server.tool(
+  "gretl_guide_mode",
+  "Launch a visible native Gretl learning workflow first, then return structured OLS diagnostic findings and teaching cues. No screenshots are used.",
+  {
+    datasetPath: safePathSchema
+      .optional()
+      .describe("Optional local dataset. Omit with variables to use a demo dataset containing common OLS problems."),
+    dependentVariable: gretlIdentifierSchema
+      .optional()
+      .describe("Dependent variable for guided OLS diagnostics. Required when datasetPath is provided."),
+    independentVariables: z
+      .array(gretlIdentifierSchema)
+      .min(1)
+      .optional()
+      .describe("Independent variables for guided OLS diagnostics. Required when datasetPath is provided."),
+    includeConstant: z.boolean().default(true),
+    learningLevel: z
+      .enum(["beginner", "intermediate", "advanced"])
+      .default("beginner")
+      .describe("Controls the teaching notes returned with the guided workflow."),
+    timeoutSeconds: z.number().int().positive().max(300).optional(),
+    keepWorkspace: z
+      .boolean()
+      .default(true)
+      .describe("Keep the CLI run workspace so generated scripts and artifacts remain available."),
+    workspaceRoot: z
+      .string()
+      .optional()
+      .describe("Optional directory where guide workspaces are created."),
+    gretlCliPath: z.string().optional(),
+    displayInGretl: z
+      .boolean()
+      .optional()
+      .describe("Open the generated guide script in the visible Gretl GUI before CLI diagnostics. Defaults to true outside CI."),
+    requireGui: z
+      .boolean()
+      .optional()
+      .describe("Require the visible Gretl GUI to open for this learning workflow. Defaults to true outside CI."),
+    gretlGuiPath: z.string().optional(),
+    guiNewInstance: z.boolean().default(true)
+  },
+  async (input) => runGuideModeTool(input)
 );
 
 server.tool(
@@ -557,6 +603,99 @@ async function runCommandsTool(input: {
     validateGuiPolicy(input.displayInGretl, input.requireGui);
     const result = await runGretlCommands(retainWorkspaceForGui(input));
     return formatGretlRunResult(result, input);
+  } catch (error) {
+    return formatToolError(error);
+  }
+}
+
+async function runGuideModeTool(input: {
+  datasetPath?: string;
+  dependentVariable?: string;
+  independentVariables?: string[];
+  includeConstant?: boolean;
+  learningLevel?: "beginner" | "intermediate" | "advanced";
+  timeoutSeconds?: number;
+  keepWorkspace?: boolean;
+  workspaceRoot?: string;
+  gretlCliPath?: string;
+  displayInGretl?: boolean;
+  requireGui?: boolean;
+  gretlGuiPath?: string;
+  guiNewInstance?: boolean;
+}) {
+  try {
+    validateGuiPolicy(input.displayInGretl, input.requireGui);
+    const guide = buildGuideModeScript({
+      datasetPath: input.datasetPath
+        ? resolveExistingDatasetPath(input.datasetPath)
+        : undefined,
+      dependentVariable: input.dependentVariable,
+      independentVariables: input.independentVariables,
+      includeConstant: input.includeConstant,
+      learningLevel: input.learningLevel
+    });
+
+    const gretlGui = await maybeOpenInGretl({
+      script: guide.script,
+      safeMode: false,
+      workspaceRoot: input.workspaceRoot,
+      displayInGretl: input.displayInGretl,
+      requireGui: input.requireGui,
+      gretlGuiPath: input.gretlGuiPath,
+      guiNewInstance: input.guiNewInstance
+    });
+    const guiFailure = describeGuiRequirementFailure(gretlGui);
+    if (guiFailure) {
+      return asMcpText({
+        ok: false,
+        mode: "ols-diagnostics",
+        nativeGui: {
+          screenshotBased: false,
+          realtime: false,
+          launchOrder: "gui-before-cli"
+        },
+        guideSteps: guide.guideSteps,
+        teachingNotes: guide.teachingNotes,
+        commonProblems: guide.commonProblems,
+        usesDemoData: guide.usesDemoData,
+        gretlGui,
+        error: guiFailure
+      });
+    }
+
+    const result = await runGretlScript({
+      script: guide.script,
+      timeoutSeconds: input.timeoutSeconds,
+      safeMode: false,
+      keepWorkspace: input.keepWorkspace ?? true,
+      workspaceRoot: input.workspaceRoot,
+      gretlCliPath: input.gretlCliPath
+    });
+
+    return asMcpText({
+      ok: result.exitCode === 0 && !result.timedOut,
+      mode: "ols-diagnostics",
+      nativeGui: {
+        screenshotBased: false,
+        realtime: gretlGui.opened,
+        launchOrder: "gui-before-cli"
+      },
+      guideSteps: guide.guideSteps,
+      teachingNotes: guide.teachingNotes,
+      commonProblems: guide.commonProblems,
+      usesDemoData: guide.usesDemoData,
+      findings: parseGuideFindings(result.stdout),
+      exitCode: result.exitCode,
+      timedOut: result.timedOut,
+      command: result.command,
+      args: result.args,
+      workspace: result.workspace,
+      scriptPath: result.scriptPath,
+      artifacts: result.artifacts,
+      gretlGui,
+      stdout: result.stdout,
+      stderr: result.stderr
+    });
   } catch (error) {
     return formatToolError(error);
   }

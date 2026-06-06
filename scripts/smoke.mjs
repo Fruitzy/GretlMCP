@@ -28,6 +28,7 @@ try {
   const requiredTools = [
     "gretl_capabilities",
     "gretl_dataset_summary",
+    "gretl_guide_mode",
     "gretl_gui_launch",
     "gretl_gui_version",
     "gretl_help",
@@ -120,6 +121,22 @@ try {
   const capabilitiesPayload = JSON.parse(readText(capabilities));
   if (!String(capabilitiesPayload.stdout ?? "").includes("Valid gretl commands")) {
     throw new Error("gretl_capabilities did not return Gretl command help.");
+  }
+
+  const guideMode = await client.callTool({
+    name: "gretl_guide_mode",
+    arguments: {
+      displayInGretl: false,
+      requireGui: false,
+      timeoutSeconds: 60
+    }
+  });
+  const guideModePayload = JSON.parse(readText(guideMode));
+  if (guideModePayload.ok !== true || !Array.isArray(guideModePayload.guideSteps)) {
+    throw new Error("gretl_guide_mode did not return a successful guided workflow.");
+  }
+  if (guideModePayload.nativeGui?.screenshotBased !== false) {
+    throw new Error("gretl_guide_mode should declare that screenshots are not used.");
   }
 
   const tempDir = await mkdtemp(join(tmpdir(), "gretl-mcp-smoke-"));

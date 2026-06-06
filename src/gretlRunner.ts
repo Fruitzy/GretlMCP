@@ -89,6 +89,39 @@ export type GretlArtifact = {
   sizeBytes: number;
 };
 
+export type GretlGuideLearningLevel = "beginner" | "intermediate" | "advanced";
+
+export type GretlGuideStep = {
+  id: string;
+  title: string;
+  cue: string;
+  gretlAction: string;
+  whyItMatters: string;
+};
+
+export type GretlGuideScriptOptions = {
+  datasetPath?: string;
+  dependentVariable?: string;
+  independentVariables?: string[];
+  includeConstant?: boolean;
+  learningLevel?: GretlGuideLearningLevel;
+};
+
+export type GretlGuideScript = {
+  script: string;
+  guideSteps: GretlGuideStep[];
+  teachingNotes: string[];
+  commonProblems: string[];
+  usesDemoData: boolean;
+};
+
+export type GretlGuideFinding = {
+  severity: "info" | "warning" | "danger";
+  code: string;
+  message: string;
+  guidance: string;
+};
+
 const DEFAULT_TIMEOUT_SECONDS = 30;
 const MAX_TIMEOUT_SECONDS = 300;
 const PACKAGE_ACTIONS = new Set<GretlPackageAction>([
@@ -331,6 +364,142 @@ export function buildOlsScript(
   ].join(EOL);
 }
 
+export function buildGuideModeScript(
+  options: GretlGuideScriptOptions = {}
+): GretlGuideScript {
+  const usesDemoData = !hasGuideDatasetInput(options);
+  if (!usesDemoData) {
+    assertCompleteGuideDatasetInput(options);
+  }
+
+  const includeConstant = options.includeConstant ?? true;
+  const dependentVariable = usesDemoData ? "y" : options.dependentVariable!;
+  const independentVariables = usesDemoData
+    ? ["x1", "x2", "time"]
+    : options.independentVariables!;
+
+  assertGretlIdentifier(dependentVariable);
+  for (const independentVariable of independentVariables) {
+    assertGretlIdentifier(independentVariable);
+  }
+
+  const regressors = [
+    includeConstant ? "const" : undefined,
+    ...independentVariables
+  ].filter(Boolean);
+  const guideSteps = buildGuideSteps(usesDemoData);
+  const teachingNotes = buildTeachingNotes(options.learningLevel ?? "beginner");
+  const commonProblems = [
+    "Wrong sample: observations can be silently dropped by missing values or active sample restrictions.",
+    "Bad specification: residual tests often reveal nonlinearity, omitted variables, or wrong dynamics.",
+    "Heteroskedasticity: standard errors can be misleading even when coefficients look reasonable.",
+    "Autocorrelation: time-series models often need lags, dynamics, or different estimators.",
+    "Multicollinearity: variables can overlap so much that individual coefficients become unstable.",
+    "Influential observations: a small number of rows can dominate the fitted model."
+  ];
+
+  const lines = [
+    "# GretlMCP native guide mode",
+    "# The visible Gretl GUI runs this Hansl script directly; no screenshots or image scraping are used.",
+    "# Follow the => guide cues in the script and output while Gretl executes each step.",
+    printfLine("@@GRETLMCP_GUIDE_STEP|1|Orient to the data|Open data, check sample size, and inspect variables."),
+    printfLine("=> Step 1/6: Orient to the data in Gretl. Look at the dataset window, sample range, and variable list."),
+    ...buildGuideDataSetupLines(options, usesDemoData),
+    "summary",
+    "corr",
+    printfLine("@@GRETLMCP_GUIDE_STEP|2|Estimate the baseline model|Fit OLS and read coefficient signs before trusting p-values."),
+    printfLine("=> Step 2/6: Estimate the baseline OLS model. Ask: do signs and sizes make domain sense?"),
+    `ols ${dependentVariable} ${regressors.join(" ")}`,
+    printfLine("@@GRETLMCP_GUIDE_STEP|3|Check residual normality|Use normality as an outlier and small-sample warning, not as a pass/fail grade."),
+    printfLine("=> Step 3/6: Check residual normality. If it fails, inspect outliers and transformations."),
+    "modtest --normality --silent",
+    "scalar gretlmcp_normality_p = $pvalue",
+    "printf \"Normality test p-value = %.4f\\n\", gretlmcp_normality_p",
+    "if gretlmcp_normality_p < 0.05",
+    `  ${findingPrintf("warning", "nonnormal_residuals", "Residuals are not normally distributed.", "Inspect outliers, nonlinear transformations, or robust inference.")}`,
+    "else",
+    `  ${findingPrintf("info", "normality_not_rejected", "Residual normality was not rejected.", "Continue checking variance, dynamics, and specification.")}`,
+    "endif",
+    printfLine("@@GRETLMCP_GUIDE_STEP|4|Check variance and dynamics|White and autocorrelation tests flag common beginner mistakes."),
+    printfLine("=> Step 4/6: Check heteroskedasticity and autocorrelation. These change how you trust standard errors."),
+    "modtest --white --silent",
+    "scalar gretlmcp_white_p = $pvalue",
+    "printf \"White test p-value = %.4f\\n\", gretlmcp_white_p",
+    "if gretlmcp_white_p < 0.05",
+    `  ${findingPrintf("warning", "heteroskedasticity", "Residual variance changes across observations.", "Try robust standard errors, transformations, or a better variance model.")}`,
+    "else",
+    `  ${findingPrintf("info", "heteroskedasticity_not_rejected", "White test did not reject constant variance.", "Still check plots and domain-specific variance changes.")}`,
+    "endif",
+    "modtest 4 --autocorr --silent",
+    "scalar gretlmcp_autocorr_p = $pvalue",
+    "printf \"Autocorrelation test p-value = %.4f\\n\", gretlmcp_autocorr_p",
+    "if gretlmcp_autocorr_p < 0.05",
+    `  ${findingPrintf("warning", "autocorrelation", "Residuals are correlated over time.", "Add lags, model dynamics, or use a time-series estimator when appropriate.")}`,
+    "else",
+    `  ${findingPrintf("info", "autocorrelation_not_rejected", "Autocorrelation was not rejected at lag 4.", "Keep checking if the data frequency suggests other lags.")}`,
+    "endif",
+    printfLine("@@GRETLMCP_GUIDE_STEP|5|Check form and variable overlap|RESET and VIF show if the equation is hard to trust."),
+    printfLine("=> Step 5/6: Check functional form and multicollinearity. These are common sources of confusing Gretl output."),
+    "reset --silent",
+    "scalar gretlmcp_reset_p = $pvalue",
+    "printf \"RESET p-value = %.4f\\n\", gretlmcp_reset_p",
+    "if gretlmcp_reset_p < 0.05",
+    `  ${findingPrintf("warning", "reset_rejected", "RESET rejects the current functional form.", "Consider nonlinear terms, interactions, missing variables, or a different model family.")}`,
+    "else",
+    `  ${findingPrintf("info", "reset_not_rejected", "RESET did not reject the current functional form.", "This is not proof the model is right; it only removes one warning sign.")}`,
+    "endif",
+    "vif --quiet",
+    "matrix gretlmcp_vif = $result",
+    "scalar gretlmcp_max_vif = max(gretlmcp_vif)",
+    "printf \"Maximum VIF = %.4f\\n\", gretlmcp_max_vif",
+    "if gretlmcp_max_vif > 10",
+    `  ${findingPrintf("warning", "high_multicollinearity", "One or more regressors have very high VIF.", "Remove redundant variables, combine measures, or interpret individual coefficients carefully.")}`,
+    "elif gretlmcp_max_vif > 5",
+    `  ${findingPrintf("warning", "moderate_multicollinearity", "Some regressors overlap strongly.", "Check whether the variables measure the same concept.")}`,
+    "else",
+    `  ${findingPrintf("info", "multicollinearity_low", "VIF values are not high.", "Coefficient instability from variable overlap is less likely here.")}`,
+    "endif",
+    printfLine("@@GRETLMCP_GUIDE_STEP|6|Check influential rows and choose next action|Do not stop at one model; decide what to fix or explain."),
+    printfLine("=> Step 6/6: Check influential observations, then choose the next model improvement deliberately."),
+    "leverage --save --overwrite --quiet",
+    "scalar gretlmcp_max_influence = max(abs(influ))",
+    "printf \"Maximum influence value = %.4f\\n\", gretlmcp_max_influence",
+    "if gretlmcp_max_influence > 1",
+    `  ${findingPrintf("warning", "influential_observations", "Influential observations may dominate the model.", "Inspect those rows in the Gretl data window before removing or explaining them.")}`,
+    "else",
+    `  ${findingPrintf("info", "influence_not_extreme", "No extreme influence value was detected.", "Still inspect unusual observations if the domain suggests data quality issues.")}`,
+    "endif",
+    printfLine("=> Guide complete: use the findings above as a learning checklist, not an automatic final answer."),
+    "printf \"Model guide finished for dependent variable: " +
+      escapeGretlString(dependentVariable) +
+      "\\n\""
+  ];
+
+  return {
+    script: lines.join(EOL),
+    guideSteps,
+    teachingNotes,
+    commonProblems,
+    usesDemoData
+  };
+}
+
+export function parseGuideFindings(stdout: string): GretlGuideFinding[] {
+  return stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("@@GRETLMCP_FINDING|"))
+    .map((line) => {
+      const [, severity, code, message, ...guidanceParts] = line.split("|");
+      return {
+        severity: normalizeGuideSeverity(severity),
+        code: code || "unknown",
+        message: message || "",
+        guidance: guidanceParts.join("|")
+      };
+    });
+}
+
 export function buildHelpScript(commandName: string): string {
   assertGretlIdentifier(commandName);
   return `help ${commandName}`;
@@ -441,6 +610,148 @@ function assertPackageAction(action: GretlPackageAction): void {
   if (!PACKAGE_ACTIONS.has(action)) {
     throw new Error(`Unsupported Gretl package action: ${action}`);
   }
+}
+
+function hasGuideDatasetInput(options: GretlGuideScriptOptions): boolean {
+  return Boolean(
+    options.datasetPath ||
+      options.dependentVariable ||
+      options.independentVariables?.length
+  );
+}
+
+function assertCompleteGuideDatasetInput(options: GretlGuideScriptOptions): void {
+  if (!options.datasetPath || !options.dependentVariable || !options.independentVariables?.length) {
+    throw new Error(
+      "Guide mode needs datasetPath, dependentVariable, and at least one independentVariable together. Omit all three to use demo data."
+    );
+  }
+}
+
+function buildGuideDataSetupLines(
+  options: GretlGuideScriptOptions,
+  usesDemoData: boolean
+): string[] {
+  if (!usesDemoData) {
+    return [`open ${quoteGretlPath(options.datasetPath!)}`];
+  }
+
+  return [
+    "set seed 5252",
+    "nulldata 180",
+    "setobs 12 2010:01",
+    "genr time",
+    "series x1 = normal()",
+    "series x2 = 0.95*x1 + normal()*0.15",
+    "series e = normal() * (0.4 + abs(x1))",
+    "series y = 1 + 0.5*x1 + 0.3*x2 + 0.02*time + e",
+    printfLine("Demo data loaded: it intentionally contains overlap and changing variance so the guide has real problems to find.")
+  ];
+}
+
+function buildGuideSteps(usesDemoData: boolean): GretlGuideStep[] {
+  return [
+    {
+      id: "orient-data",
+      title: "Orient to the data",
+      cue: "=> Look at the Gretl data window, sample range, and variable list.",
+      gretlAction: usesDemoData
+        ? "Generate a demo dataset with known model problems."
+        : "Open the provided local dataset.",
+      whyItMatters:
+        "Many Gretl mistakes start with the wrong active sample, missing values, or misunderstood variables."
+    },
+    {
+      id: "baseline-ols",
+      title: "Estimate the baseline model",
+      cue: "=> Read coefficient signs and sizes before looking only at p-values.",
+      gretlAction: "Run OLS for the selected dependent and independent variables.",
+      whyItMatters:
+        "A model can be statistically significant but still economically or logically wrong."
+    },
+    {
+      id: "normality",
+      title: "Check residual normality",
+      cue: "=> Treat failure as a prompt to inspect outliers or transformations.",
+      gretlAction: "Run Gretl residual normality diagnostics.",
+      whyItMatters:
+        "Non-normal residuals often reveal outliers, skew, or a model that misses important structure."
+    },
+    {
+      id: "variance-dynamics",
+      title: "Check variance and dynamics",
+      cue: "=> White and autocorrelation tests explain why standard errors may be unreliable.",
+      gretlAction: "Run White and autocorrelation tests.",
+      whyItMatters:
+        "Unreliable standard errors can make a user trust relationships that are not actually supported."
+    },
+    {
+      id: "form-overlap",
+      title: "Check form and variable overlap",
+      cue: "=> RESET and VIF point to missing nonlinear structure or redundant regressors.",
+      gretlAction: "Run RESET and VIF diagnostics.",
+      whyItMatters:
+        "This is where users often discover that the equation, not Gretl, is the problem."
+    },
+    {
+      id: "influence-next-action",
+      title: "Check influential rows and choose next action",
+      cue: "=> Inspect influential observations before changing the model.",
+      gretlAction: "Run leverage and influence diagnostics.",
+      whyItMatters:
+        "A few unusual rows can change the story; the user should learn whether to fix data or explain it."
+    }
+  ];
+}
+
+function buildTeachingNotes(level: GretlGuideLearningLevel): string[] {
+  const notes = [
+    "Gretl is the working surface: the generated script, output, and model windows are the guide.",
+    "The arrow cues tell the user where to look next while the real Gretl workflow runs.",
+    "Findings are teaching prompts. They do not automatically prove a model is wrong or right."
+  ];
+
+  if (level === "beginner") {
+    return [
+      ...notes,
+      "Beginner rule: first understand the data and graph suspicious variables before changing commands."
+    ];
+  }
+
+  if (level === "intermediate") {
+    return [
+      ...notes,
+      "Intermediate rule: compare at least one alternative specification before trusting inference."
+    ];
+  }
+
+  return [
+    ...notes,
+    "Advanced rule: connect every diagnostic warning to identification, estimator choice, or data-generating process assumptions."
+  ];
+}
+
+function printfLine(text: string): string {
+  return `printf "${escapeGretlString(text)}\\n"`;
+}
+
+function findingPrintf(
+  severity: GretlGuideFinding["severity"],
+  code: string,
+  message: string,
+  guidance: string
+): string {
+  return printfLine(`@@GRETLMCP_FINDING|${severity}|${code}|${message}|${guidance}`);
+}
+
+function escapeGretlString(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+function normalizeGuideSeverity(value: string): GretlGuideFinding["severity"] {
+  return value === "warning" || value === "danger" || value === "info"
+    ? value
+    : "info";
 }
 
 function resolveExistingDirectory(directoryPath: string): string {
